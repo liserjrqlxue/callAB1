@@ -162,16 +162,16 @@ func (v *Variants) CalVariants() {
 
 		varint := &Variant{
 			Chr:       data["chr"].(string),
-			Pos:       data["pos"].(int),
+			Pos:       int(data["pos"].(float64)),
 			ID:        data["id"].(string),
 			Ref:       data["ref"].(string),
 			Alt:       data["alt"].(string),
-			Qual:      data["qual"].(int),
+			Qual:      int(data["qual"].(float64)),
 			Filter:    data["filter"].(string),
 			Type:      data["type"].(string),
 			Genotype:  data["genotype"].(string),
-			Basepos:   data["basepos"].(int),
-			Signalpos: data["signalpos"].(int),
+			Basepos:   int(data["basepos"].(float64)),
+			Signalpos: int(data["signalpos"].(float64)),
 
 			Xrange: xrange,
 		}
