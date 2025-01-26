@@ -105,8 +105,8 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	result = simpleUtil.HandleError(RunBasecall(tracy, input, prefix, left, right))
 
 	// trim
-	left = 60
-	right = max(60, len(result.BasecallPos)-700)
+	left = Trim
+	right = max(Trim, len(result.BasecallPos)-MaxLength)
 	result = simpleUtil.HandleError(RunDecompose(tracy, ref, input, prefix, left, right))
 
 	result.Variants.CalVariants()

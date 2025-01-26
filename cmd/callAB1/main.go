@@ -35,9 +35,19 @@ var (
 		"",
 		"output prefix",
 	)
+	trim = flag.Int(
+		"trim",
+		60,
+		"min trim length",
+	)
+	maxLength = flag.Int(
+		"max",
+		700,
+		"max length, tail trimed",
+	)
 )
 
-func main() {
+func init() {
 	flag.Parse()
 	if *input == "" {
 		flag.PrintDefaults()
@@ -50,6 +60,12 @@ func main() {
 	if *prefix == "" {
 		*prefix = strings.TrimSuffix(filepath.Base(*input), filepath.Ext(*input))
 	}
+
+	tracy.Trim = *trim
+	tracy.MaxLength = *maxLength
+}
+
+func main() {
 
 	if *input2 == "" {
 		tracy.RunSingle(*bin, *ref, *input, *prefix)
