@@ -16,9 +16,14 @@ var (
 		"https://github.com/gear-genomics/tracy binary path",
 	)
 	input = flag.String(
-		"input",
-		"input",
+		"i",
+		"",
 		"input ab1 path",
+	)
+	input2 = flag.String(
+		"i2",
+		"",
+		"paired ab1 path",
 	)
 	ref = flag.String(
 		"ref",
@@ -46,5 +51,9 @@ func main() {
 		*prefix = strings.TrimSuffix(filepath.Base(*input), filepath.Ext(*input))
 	}
 
-	tracy.RunSingle(*bin, *ref, *input, *prefix)
+	if *input2 == "" {
+		tracy.RunSingle(*bin, *ref, *input, *prefix)
+	} else {
+		tracy.RunPair(*bin, *ref, *input, *input2, *prefix)
+	}
 }
