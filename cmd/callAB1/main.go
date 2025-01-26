@@ -76,6 +76,7 @@ func main() {
 		log.Fatalf("json.Unmarshal failed: %v\n\tResult:%s", err, resultJson)
 	}
 
+	tracyResult.Variants.CalVariants()
 	out := osUtil.Create(*prefix + ".decompose.variants.txt")
 	defer simpleUtil.DeferClose(out)
 	fmtUtil.Fprintln(out, tracyResult.Variants.String())
