@@ -79,6 +79,8 @@ func main() {
 	tracyResult.Variants.CalVariants()
 	out := osUtil.Create(*prefix + ".decompose.variants.txt")
 	defer simpleUtil.DeferClose(out)
+	// output title
+	fmtUtil.FprintStringArray(out, append(tracyResult.Variants.Columns, "xrange1", "xrange2"), "\t")
 	fmtUtil.Fprintln(out, tracyResult.Variants.String())
 
 }
