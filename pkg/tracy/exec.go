@@ -119,3 +119,34 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	return
 
 }
+
+func RunPair(tracy, ref, input1, input2, prefix string) (result1, result2 Result, err error) {
+	// recover panic
+	defer func() {
+		if e := recover(); e != nil {
+			slog.Error("RunPair Recover", "e", e, "err", err)
+			err = e.(error)
+			return
+		}
+	}()
+
+	result1 = simpleUtil.HandleError(RunSingle(tracy, ref, input1, prefix+"_1"))
+	result2 = simpleUtil.HandleError(RunSingle(tracy, ref, input2, prefix+"_2"))
+
+	var out = osUtil.Create(prefix + ".decompose.variants.txt")
+	defer simpleUtil.DeferClose(out)
+	// output title
+	var title = []string{"Source"}
+	title = append(title, result1.Variants.Columns...)
+	title = append(title, "xrange1", "xrange2")
+	fmtUtil.FprintStringArray(out, title, "\t")
+	for _, v := range result1.Variants.Variants {
+		fmtUtil.Fprintf(out, "%s\t%s\n", "1", v.String())
+	}
+	for _, v := range result2.Variants.Variants {
+		fmtUtil.Fprintf(out, "%s\t%s\n", "2", v.String())
+	}
+
+	return
+
+}
