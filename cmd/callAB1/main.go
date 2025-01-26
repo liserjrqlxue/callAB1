@@ -56,24 +56,22 @@ func main() {
 	}
 
 	var left, right = 0, 0
+	var resultJson []byte
 	var tracyResult *tracyResult
-	resultJson, err := basecall(*tracy, *input, *prefix, left, right)
-	if err != nil {
-		log.Fatalf("basecall failed: %v\n\tResult:%s", err, resultJson)
-	}
+
+	simpleUtil.CheckErr(basecall(*tracy, *input, *prefix, left, right))
+	resultJson = simpleUtil.HandleError(os.ReadFile(*prefix + ".basecall.json"))
 
 	if err := json.Unmarshal(resultJson, &tracyResult); err != nil {
 		log.Fatalf("json.Unmarshal failed: %v\n\tResult:%s", err, resultJson)
 	}
-	tracyResult.SeqLength = len(tracyResult.BasecallPos)
 
 	// trim
 	left = 60
 	right = max(60, len(tracyResult.BasecallPos)-700)
-	resultJson, err = decompose(*tracy, *ref, *input, *prefix, left, right)
-	if err != nil {
-		log.Fatalf("decompose failed: %v\n\tResult:%s", err, resultJson)
-	}
+	simpleUtil.CheckErr(decompose(*tracy, *ref, *input, *prefix, left, right))
+	resultJson = simpleUtil.HandleError(os.ReadFile(*prefix + ".decompose.json"))
+
 	if err := json.Unmarshal(resultJson, &tracyResult); err != nil {
 		log.Fatalf("json.Unmarshal failed: %v\n\tResult:%s", err, resultJson)
 	}
@@ -84,7 +82,7 @@ func main() {
 
 }
 
-func basecall(tracy, input, prefix string, left, right int) (bcResult []byte, err error) {
+func basecall(tracy, input, prefix string, left, right int) error {
 	var args = []string{
 		"basecall",
 		"-o", prefix + ".basecall.json",
@@ -96,10 +94,10 @@ func basecall(tracy, input, prefix string, left, right int) (bcResult []byte, er
 	slog.Info("Basecall", "CMD", cmd)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
-	return cmd.Output()
+	return cmd.Run()
 }
 
-func decompose(tracy, ref, input, prefix string, left, right int) (dcResult []byte, err error) {
+func decompose(tracy, ref, input, prefix string, left, right int) error {
 	var args = []string{
 		"decompose",
 		"-r", ref,
@@ -113,7 +111,7 @@ func decompose(tracy, ref, input, prefix string, left, right int) (dcResult []by
 	slog.Info("Decompose", "CMD", cmd)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
-	return cmd.Output()
+	return cmd.Run()
 }
 
 // "meta": {"program": "tracy", "version": "0.7.8", "arguments": {"trimLeft": 50, "trimRight": 50, "pratio": 0.33, "genome": "BGA_14A2.fa", "input": "BGA-14A2-TY1-8-T7.ab1"}},
@@ -232,6 +230,4 @@ type tracyResult struct {
 	Decompositon map[string][]int `json:"decompositon"`
 
 	Variants *Variants `json:"variants"`
-
-	SeqLength int `json:"seqLength"`
 }
