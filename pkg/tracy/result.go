@@ -202,7 +202,7 @@ func (ar *AlignResult) CalAlign() {
 	var boundStatus []int
 	var newBound [4]int
 	var boundMatch = 0
-	for i, s := range status {
+	for _, s := range status {
 		if s != 1 {
 			refPos++
 		}
