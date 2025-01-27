@@ -2,6 +2,7 @@ package tracy
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 )
 
@@ -86,11 +87,13 @@ type Result struct {
 	PeakG []int `json:"peakG"`
 	PeakT []int `json:"peakT"`
 
-	BasecallPos  []int             `json:"basecallPos"`
-	BasecallQual []int             `json:"basecallQual"`
-	Basecalls    map[string]string `json:"basecalls"`
-	PrimarySeq   string            `json:"primarySeq"`
-	SecondarySeq string            `json:"secondarySeq"`
+	BasecallPos  []int `json:"basecallPos"`
+	BasecallQual []int `json:"basecallQual"`
+
+	Basecalls map[string]string `json:"basecalls"`
+
+	PrimarySeq   string `json:"primarySeq"`
+	SecondarySeq string `json:"secondarySeq"`
 
 	ChartConfig map[string]interface{} `json:"chartConfig"`
 
@@ -121,4 +124,75 @@ type Result struct {
 	Decompositon map[string][]int `json:"decompositon"`
 
 	Variants *Variants `json:"variants"`
+}
+
+type Trace struct {
+	TraceFileName string `json:"traceFileName"`
+
+	LeadingGaps  int `json:"leadingGaps"`
+	TrailingGaps int `json:"trailingGaps"`
+
+	PeakA []int `json:"peakA"`
+	PeakC []int `json:"peakC"`
+	PeakG []int `json:"peakG"`
+	PeakT []int `json:"peakT"`
+
+	BasecallPos  []int `json:"basecallPos"`
+	BasecallQual []int `json:"basecallQual"`
+
+	Basecalls map[string]string `json:"basecalls"`
+}
+
+type AlignResult struct {
+	GappedTrace *Trace `json:"gappedTrace"`
+
+	Refchr   string `json:"refchr"`
+	Refpos   int    `json:"refpos"`
+	Altalign string `json:"altalign"`
+	Refalign string `json:"refalign"`
+	Forward  int    `json:"forward"`
+}
+
+func (ar *AlignResult) CalAlign() {
+	if len(ar.Refalign) != len(ar.Altalign) {
+		panic("len(ar.Refalign)!=len(ar.Altalign)")
+	}
+	var (
+		match     = 0
+		refLength = 0
+		altLength = 0
+		// altInsert = 0
+		// altDel    = 0
+		// 0:match 1:insert 2:del 3:mismatch
+		currentStatus = 0
+		status        []int
+	)
+
+	for i := range ar.Refalign {
+		refN := ar.Refalign[i]
+		altN := ar.Altalign[i]
+
+		if refN == altN {
+			if refN == '-' {
+				panic("refN=='-'&&altN=='-'")
+			}
+			currentStatus = 0
+			refLength++
+			altLength++
+			match++
+		} else if refN == '-' {
+			currentStatus = 1
+			altLength++
+		} else if altN == '-' {
+			currentStatus = 2
+			refLength++
+		} else {
+			currentStatus = 3
+			refLength++
+			altLength++
+		}
+		status = append(status, currentStatus)
+	}
+	slog.Info("CalAlign", "match", match, "refLength", refLength, "altLength", altLength, "altRatio", float64(match)/float64(altLength), "status", status)
+
 }

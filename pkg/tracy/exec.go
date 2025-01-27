@@ -27,6 +27,22 @@ func Basecall(tracy, input, prefix string, left, right int) error {
 	return cmd.Run()
 }
 
+func Align(tracy, ref, input, prefix string, left, right int) error {
+	var args = []string{
+		"align",
+		"-r", ref,
+		"-o", prefix + ".align",
+		"-q", strconv.Itoa(left),
+		"-u", strconv.Itoa(right),
+		input,
+	}
+	cmd := exec.Command(tracy, args...)
+	slog.Info("Basecall", "CMD", cmd)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
+}
+
 func Decompose(tracy, ref, input, prefix string, left, right int) error {
 	var args = []string{
 		"decompose",
@@ -61,6 +77,29 @@ func RunBasecall(tracy, input, prefix string, left, right int) (result Result, e
 	err = json.Unmarshal(resultJson, &result)
 	if err != nil {
 		slog.Error("Unmarshal basecall.json", "jsonByte", resultJson, "err", err)
+		return
+	}
+
+	return
+}
+
+func RunAlign(tracy, ref, input, prefix string, left, right int) (result AlignResult, err error) {
+	err = Align(tracy, ref, input, prefix, left, right)
+	if err != nil {
+		slog.Error("Align", "err", err)
+		return
+	}
+
+	var resultJson []byte
+	resultJson, err = os.ReadFile(prefix + ".align.json")
+	if err != nil {
+		slog.Error("Load align.json", "json", prefix+".align.json", "err", err)
+		return
+	}
+
+	err = json.Unmarshal(resultJson, &result)
+	if err != nil {
+		slog.Error("Unmarshal align.json", "jsonByte", resultJson, "err", err)
 		return
 	}
 
@@ -107,6 +146,10 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	// trim
 	left = Trim
 	right = max(Trim, len(result.BasecallPos)-MaxLength)
+
+	alignResult := simpleUtil.HandleError(RunAlign(tracy, ref, input, prefix, left, right))
+	alignResult.CalAlign()
+
 	result = simpleUtil.HandleError(RunDecompose(tracy, ref, input, prefix, left, right))
 
 	result.Variants.CalVariants()
