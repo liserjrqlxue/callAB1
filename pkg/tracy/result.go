@@ -198,32 +198,30 @@ func (ar *AlignResult) CalAlign() {
 	var altPos = 0
 	var refPos = 0
 	var altBound = [2]int{Trim, min(altLength-Trim, MaxLength)}
-	var refBound = [2]int{1, refLength}
+	var refBound = [2]int{40, refLength - 40}
 	var boundStatus []int
+	var newBound [4]int
 	var boundMatch = 0
-	for _, s := range status {
+	for i, s := range status {
 		if s != 1 {
 			refPos++
 		}
 		if s != 2 {
 			altPos++
-			if altPos == altBound[0] {
-				refBound[0] = refPos
+		}
+		if altPos >= altBound[0] && altPos <= altBound[1] && refPos >= refBound[0] && refPos <= refBound[1] {
+			boundStatus = append(boundStatus, s)
+			if len(boundStatus) == 1 {
+				newBound[0] = refPos
+				newBound[2] = altPos
 			}
-			if altPos == altBound[1] {
-				refBound[1] = refPos
-			}
-			if altPos >= altBound[0] && altPos <= altBound[1] {
-				boundStatus = append(boundStatus, s)
-				if s == 0 {
-					boundMatch++
-				}
+			newBound[1] = refPos
+			newBound[3] = altPos
+			if s == 0 {
+				boundMatch++
 			}
 		}
 	}
-	if ar.Forward == 0 {
-		refBound[0] -= refLength
-		refBound[1] -= refLength
-	}
-	slog.Info("Bound", "refBound", refBound, "altBound", altBound, "boundMatch", boundMatch, "boundMatchRatio", float64(boundMatch)/float64(altBound[1]-altBound[0]+1), "boundStatus", boundStatus)
+
+	slog.Info("Bound", "refBound", refBound, "altBound", altBound, "newBound", newBound, "boundMatch", boundMatch, "boundMatchRatio", float64(boundMatch)/float64(newBound[3]-newBound[2]+1), "boundStatus", boundStatus)
 }
