@@ -144,8 +144,8 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	result = simpleUtil.HandleError(RunBasecall(tracy, input, prefix, left, right))
 
 	// trim
-	left = Trim
-	right = max(Trim, len(result.BasecallPos)-MaxLength)
+	// left = Trim
+	// right = max(Trim, len(result.BasecallPos)-MaxLength)
 
 	alignResult := simpleUtil.HandleError(RunAlign(tracy, ref, input, prefix, left, right))
 	alignResult.CalAlign()
