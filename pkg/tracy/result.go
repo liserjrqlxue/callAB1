@@ -195,4 +195,31 @@ func (ar *AlignResult) CalAlign() {
 	}
 	slog.Info("CalAlign", "match", match, "refLength", refLength, "altLength", altLength, "altRatio", float64(match)/float64(altLength), "status", status)
 
+	var altPos = 0
+	var refPos = 0
+	var altBound = [2]int{Trim, min(altLength-Trim, MaxLength)}
+	var refBound = [2]int{1, refLength}
+	var boundStatus []int
+	var boundMatch = 0
+	for _, s := range status {
+		if s != 1 {
+			refPos++
+		}
+		if s != 2 {
+			altPos++
+			if altPos == altBound[0] {
+				refBound[0] = refPos
+			}
+			if altPos == altBound[1] {
+				refBound[1] = refPos
+			}
+			if altPos >= altBound[0] && altPos <= altBound[1] {
+				boundStatus = append(boundStatus, s)
+				if s == 0 {
+					boundMatch++
+				}
+			}
+		}
+	}
+	slog.Info("Bound", "refBound", refBound, "altBound", altBound, "boundMatch", boundMatch, "boundMatchRatio", float64(boundMatch)/float64(altBound[1]-altBound[0]), "boundStatus", boundStatus)
 }
