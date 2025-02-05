@@ -223,5 +223,5 @@ func (ar *AlignResult) CalAlign() {
 		}
 	}
 
-	slog.Info("Bound", "refBound", refBound, "altBound", altBound, "newBound", newBound, "boundMatch", boundMatch, "boundMatchRatio", float64(boundMatch)/float64(altLength), "boundStatus", boundStatus)
+	slog.Info("Bound", "refBound", refBound, "altBound", altBound, "newBound", newBound, "boundMatch", boundMatch, "boundMatchRatio", float64(boundMatch)/float64(len(boundStatus)), "boundStatus", boundStatus)
 }
