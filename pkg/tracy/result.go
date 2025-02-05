@@ -30,8 +30,8 @@ type Variant struct {
 }
 
 func (v *Variant) String() string {
-	return fmt.Sprintf("%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d",
-		v.Chr, v.Pos, v.ID, v.Ref, v.Qual, v.Filter, v.Type, v.Genotype, v.Alt, v.Basepos, v.Signalpos, v.Xrange[0], v.Xrange[1])
+	return fmt.Sprintf("%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%d\t%d\t%d",
+		v.Chr, v.Pos, v.ID, v.Ref, v.Alt, v.Qual, v.Filter, v.Type, v.Genotype, v.Basepos, v.Signalpos, v.Xrange[0], v.Xrange[1])
 }
 
 type Variants struct {
