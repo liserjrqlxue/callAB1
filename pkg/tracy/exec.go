@@ -149,6 +149,9 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 
 	alignResult := simpleUtil.HandleError(RunAlign(tracy, ref, input, prefix, left, right))
 	alignResult.CalAlign()
+	var summary = osUtil.Create(prefix + ".align.summary.txt")
+	defer simpleUtil.DeferClose(summary)
+	alignResult.Summary(summary)
 
 	result = simpleUtil.HandleError(RunDecompose(tracy, ref, input, prefix, left, right))
 

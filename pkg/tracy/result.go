@@ -2,8 +2,11 @@ package tracy
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
+
+	"github.com/liserjrqlxue/goUtil/fmtUtil"
 )
 
 // "meta": {"program": "tracy", "version": "0.7.8", "arguments": {"trimLeft": 50, "trimRight": 50, "pratio": 0.33, "genome": "BGA_14A2.fa", "input": "BGA-14A2-TY1-8-T7.ab1"}},
@@ -151,6 +154,10 @@ type AlignResult struct {
 	Altalign string `json:"altalign"`
 	Refalign string `json:"refalign"`
 	Forward  int    `json:"forward"`
+
+	BoundMatch      int     `json:"boundMatch"`
+	BoundMatchRatio float64 `json:"boundMatchRatio"`
+	BoundStatus     []int   `json:"boundStatus"`
 }
 
 func (ar *AlignResult) CalAlign() {
@@ -222,6 +229,13 @@ func (ar *AlignResult) CalAlign() {
 			}
 		}
 	}
+	ar.BoundMatch = boundMatch
+	ar.BoundMatchRatio = float64(boundMatch) / float64(len(boundStatus))
+	ar.BoundStatus = boundStatus
 
-	slog.Info("Bound", "refBound", refBound, "altBound", altBound, "newBound", newBound, "boundMatch", boundMatch, "boundMatchRatio", float64(boundMatch)/float64(len(boundStatus)), "boundStatus", boundStatus)
+	slog.Info("Bound", "refBound", refBound, "altBound", altBound, "newBound", newBound, "boundMatch", boundMatch, "boundMatchRatio", ar.BoundMatchRatio, "boundStatus", ar.BoundStatus)
+}
+
+func (ar *AlignResult) Summary(summary io.Writer) {
+	fmtUtil.Fprintf(summary, "BoundMatch: %d, BoundLength: %d, BoundMatchRatio: %f\n", ar.BoundMatch, len(ar.BoundStatus), ar.BoundMatchRatio)
 }
