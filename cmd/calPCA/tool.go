@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 )
@@ -40,4 +42,25 @@ func RunTracyBatch(id, prefix, bin string) map[int][2]*tracy.Result {
 	}
 
 	return result
+}
+
+func RecordVariant(v *tracy.Variant, out *os.File, index, id string, l, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool) (keep bool) {
+	if v.Pos > start && v.Pos <= end {
+		fmtUtil.Fprintf(
+			out,
+			"%s\t%s\t%3d-%3d\t%d.1\t%f\t%d\t%s\n",
+			index,
+			id,
+			start, end,
+			l,
+			boundMatchRatio, hetCount,
+			v,
+		)
+		if boundMatchRatio > 0.9 && hetCount < 50 {
+			keep = true
+			key := fmt.Sprintf("%d-%d-%s-%s", l, v.Pos, v.Ref, v.Alt)
+			variantSet[key] = true
+		}
+	}
+	return
 }

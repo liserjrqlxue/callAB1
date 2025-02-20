@@ -188,46 +188,29 @@ func main() {
 				for l := range result {
 					keep := false
 
-					boundMatchRatio1 := result[l][0].AlignResult.BoundMatchRatio
-					hetCount1 := result[l][0].Variants.HetCount
-					boundMatchRatio2 := result[l][1].AlignResult.BoundMatchRatio
-					hetCount2 := result[l][1].Variants.HetCount
-					for _, v := range result[l][0].Variants.Variants {
-						if v.Pos > start && v.Pos <= end {
-							fmtUtil.Fprintf(
-								resultF,
-								"%d.%d.%d\t%s\t%3d-%3d\t%d.1\t%f\t%d\t%s\n",
-								i+1, j+1, k+1,
-								primer.ID,
-								start, end,
-								l,
-								boundMatchRatio1, hetCount1,
-								v,
-							)
-							if boundMatchRatio1 > 0.9 && hetCount1 < 50 {
-								keep = true
-								key := fmt.Sprintf("%d-%d-%s-%s", l, v.Pos, v.Ref, v.Alt)
-								variantSet[key] = true
-							}
+					result1 := result[l][0]
+					result2 := result[l][1]
+
+					index := fmt.Sprintf("%d.%d.%d", i+1, j+1, k+1)
+					id := primer.ID
+					for _, v := range result1.Variants.Variants {
+						if RecordVariant(
+							v, resultF, index, id, l, start, end,
+							result1.Variants.HetCount,
+							result1.AlignResult.BoundMatchRatio,
+							variantSet,
+						) {
+							keep = true
 						}
 					}
 					for _, v := range result[l][1].Variants.Variants {
-						if v.Pos > start && v.Pos <= end {
-							fmtUtil.Fprintf(
-								resultF,
-								"%d.%d.%d\t%s\t%3d-%3d\t%d.2\t%f\t%d\t%s\n",
-								i+1, j+1, k+1,
-								primer.ID,
-								start, end,
-								l,
-								boundMatchRatio2, hetCount2,
-								v,
-							)
-							if boundMatchRatio2 > 0.9 && hetCount2 < 50 {
-								keep = true
-								key := fmt.Sprintf("%d-%d-%s-%s", l, v.Pos, v.Ref, v.Alt)
-								variantSet[key] = true
-							}
+						if RecordVariant(
+							v, resultF, index, id, l, start, end,
+							result2.Variants.HetCount,
+							result2.AlignResult.BoundMatchRatio,
+							variantSet,
+						) {
+							keep = true
 						}
 					}
 					if keep {
