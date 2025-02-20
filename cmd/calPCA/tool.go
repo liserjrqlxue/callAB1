@@ -146,7 +146,7 @@ func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, in
 	)
 }
 
-func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIndex string, segOffset int) {
+func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIndex, segOffset int) {
 	var (
 		segStart = pair.RefStart + segOffset
 		segEnd   = pair.RefEnd + segOffset
@@ -154,19 +154,18 @@ func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIn
 
 	slog.Info("RecordPair", "id", pair.ID, "segStart", segStart, "segEnd", segEnd, "start", pair.Start, "end", pair.End)
 	for i, primer := range pair.SubSeq {
-		index := fmt.Sprintf("%s.%d", pairIndex, i+1)
+		index := fmt.Sprintf("%d.%d", pairIndex, i+1)
 		offset := segStart - pair.Start
 		RecordPrimer(primer, result, out, index, offset)
 	}
 }
 
-func RecordSeq(seq *Seq, result map[int][2]*tracy.Result, seqIndex int, prefix string) {
+func RecordSeq(seq *Seq, result map[int][2]*tracy.Result, prefix string) {
 	out := osUtil.Create(prefix + ".result.txt")
 	defer simpleUtil.DeferClose(out)
 
 	for i, pair := range seq.SubSeq {
-		pairIndex := fmt.Sprintf("%d.%d", seqIndex, i+1)
-		RecordPair(pair, result, out, pairIndex, seq.Start)
+		RecordPair(pair, result, out, i+1, seq.Start)
 	}
 }
 

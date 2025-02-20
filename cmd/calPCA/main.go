@@ -170,6 +170,6 @@ func main() {
 
 		seq.CreateFasta(prefix)
 		result := RunTracyBatch(id, prefix, *bin)
-		RecordSeq(seq, result, i+1, prefix)
+		RecordSeq(seq, result, prefix)
 	}
 }
