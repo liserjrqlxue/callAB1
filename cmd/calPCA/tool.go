@@ -46,20 +46,21 @@ func RunTracyBatch(id, prefix, bin string) map[int][2]*tracy.Result {
 	return result
 }
 
-func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerIndex, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool, pass bool) {
+func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerPairIndex, sangerIndex, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool, pass bool) {
 	if v.Pos > start && v.Pos <= end {
 		fmtUtil.Fprintf(
 			out,
-			"%s\t%s\t%3d-%3d\t%d.1\t%f\t%d\t%s\n",
+			"%s\t%s\t%3d-%3d\t%d.%d\t%f\t%d\t%v\t%s\n",
 			index,
 			id,
 			start, end,
-			sangerIndex,
+			sangerPairIndex, sangerIndex,
 			boundMatchRatio, hetCount,
+			pass,
 			v,
 		)
 		if pass {
-			key := fmt.Sprintf("%d-%d-%s-%s", sangerIndex, v.Pos, v.Ref, v.Alt)
+			key := fmt.Sprintf("%d-%d-%s-%s", sangerPairIndex, v.Pos, v.Ref, v.Alt)
 			variantSet[key] = true
 		}
 	}
@@ -81,7 +82,7 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 
 	for _, v := range result1.Variants.Variants {
 		RecordVariant(
-			v, out, index, id, sangerIndex, start, end,
+			v, out, index, id, sangerIndex, 1, start, end,
 			result1.Variants.HetCount,
 			result1.AlignResult.BoundMatchRatio,
 			variantSet,
@@ -90,7 +91,7 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 	}
 	for _, v := range result2.Variants.Variants {
 		RecordVariant(
-			v, out, index, id, sangerIndex, start, end,
+			v, out, index, id, sangerIndex, 2, start, end,
 			result2.Variants.HetCount,
 			result2.AlignResult.BoundMatchRatio,
 			variantSet,
@@ -112,8 +113,8 @@ func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, in
 		variantRatio = make(map[string]float64)
 	)
 	// 遍历结果
-	for sangerIndex := range result {
-		if Record1Result(primer, result, out, index, sangerIndex, offset, variantSet) {
+	for sangerPairIndex := range result {
+		if Record1Result(primer, result, out, index, sangerPairIndex, offset, variantSet) {
 			n++
 		}
 	}
