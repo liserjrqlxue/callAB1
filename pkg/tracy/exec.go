@@ -164,8 +164,16 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	fmtUtil.Fprintln(out, result.Variants.String())
 
 	// 评估
-	if result.AlignResult.BoundMatchRatio < 0.9 {
+	if result.AlignResult.BoundMatchRatio < BoundMatchRaitoLimit {
 		result.Status += "LowMatch"
+	}
+
+	if result.Variants.HetCount > HetCountLimit {
+		result.Status += "HighHet"
+	}
+	if result.Status == "" {
+		result.Pass = true
+		result.Status = "PASS"
 	}
 
 	return

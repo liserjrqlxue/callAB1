@@ -137,6 +137,7 @@ type Result struct {
 	AlignResult *AlignResult `json:"alignResult"`
 
 	Status string `json:"status"`
+	Pass   bool   `json:"pass"`
 }
 
 type Trace struct {
