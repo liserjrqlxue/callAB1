@@ -1,0 +1,4 @@
+test/
+
+*.exe
+cmd/calPCA/calPCA

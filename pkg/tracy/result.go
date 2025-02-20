@@ -43,6 +43,8 @@ type Variants struct {
 	Xranges [][2]int        `json:"xranges"`
 
 	Variants []*Variant `json:"variants"`
+
+	HetCount int
 }
 
 func (v *Variants) CalVariants() {
@@ -70,6 +72,10 @@ func (v *Variants) CalVariants() {
 			Xrange: xrange,
 		}
 		v.Variants = append(v.Variants, varint)
+
+		if varint.Genotype == "het." {
+			v.HetCount++
+		}
 	}
 }
 
@@ -127,6 +133,10 @@ type Result struct {
 	Decompositon map[string][]int `json:"decompositon"`
 
 	Variants *Variants `json:"variants"`
+
+	AlignResult *AlignResult `json:"alignResult"`
+
+	Status string `json:"status"`
 }
 
 type Trace struct {

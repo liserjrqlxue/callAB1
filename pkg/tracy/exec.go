@@ -154,6 +154,7 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	alignResult.Summary(summary)
 
 	result = simpleUtil.HandleError(RunDecompose(tracy, ref, input, prefix, left, right))
+	result.AlignResult = &alignResult
 
 	result.Variants.CalVariants()
 	var out = osUtil.Create(prefix + ".decompose.variants.txt")
@@ -161,6 +162,11 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	// output title
 	fmtUtil.FprintStringArray(out, append(result.Variants.Columns, "xrange1", "xrange2"), "\t")
 	fmtUtil.Fprintln(out, result.Variants.String())
+
+	// 评估
+	if result.AlignResult.BoundMatchRatio < 0.9 {
+		result.Status += "LowMatch"
+	}
 
 	return
 
