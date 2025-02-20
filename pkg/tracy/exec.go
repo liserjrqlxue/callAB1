@@ -12,7 +12,7 @@ import (
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 )
 
-func Basecall(tracy, input, prefix string, left, right int) error {
+func Basecall(tracy, input, prefix string, left, right int, stdout, stderr *os.File) error {
 	var args = []string{
 		"basecall",
 		"-o", prefix + ".basecall.json",
@@ -22,12 +22,12 @@ func Basecall(tracy, input, prefix string, left, right int) error {
 	}
 	cmd := exec.Command(tracy, args...)
 	slog.Info("Basecall", "CMD", cmd)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	cmd.Stderr = stderr
+	cmd.Stdout = stdout
 	return cmd.Run()
 }
 
-func Align(tracy, ref, input, prefix string, left, right int) error {
+func Align(tracy, ref, input, prefix string, left, right int, stdout, stderr *os.File) error {
 	var args = []string{
 		"align",
 		"-r", ref,
@@ -38,12 +38,12 @@ func Align(tracy, ref, input, prefix string, left, right int) error {
 	}
 	cmd := exec.Command(tracy, args...)
 	slog.Info("Basecall", "CMD", cmd)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	cmd.Stderr = stderr
+	cmd.Stdout = stdout
 	return cmd.Run()
 }
 
-func Decompose(tracy, ref, input, prefix string, left, right int) error {
+func Decompose(tracy, ref, input, prefix string, left, right int, stdout, stderr *os.File) error {
 	var args = []string{
 		"decompose",
 		"-r", ref,
@@ -55,13 +55,13 @@ func Decompose(tracy, ref, input, prefix string, left, right int) error {
 	}
 	cmd := exec.Command(tracy, args...)
 	slog.Info("Decompose", "CMD", cmd)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	cmd.Stderr = stderr
+	cmd.Stdout = stdout
 	return cmd.Run()
 }
 
-func RunBasecall(tracy, input, prefix string, left, right int) (result Result, err error) {
-	err = Basecall(tracy, input, prefix, left, right)
+func RunBasecall(tracy, input, prefix string, left, right int, stdout, stderr *os.File) (result Result, err error) {
+	err = Basecall(tracy, input, prefix, left, right, stdout, stderr)
 	if err != nil {
 		slog.Error("Basecall", "err", err)
 		return
@@ -83,8 +83,8 @@ func RunBasecall(tracy, input, prefix string, left, right int) (result Result, e
 	return
 }
 
-func RunAlign(tracy, ref, input, prefix string, left, right int) (result AlignResult, err error) {
-	err = Align(tracy, ref, input, prefix, left, right)
+func RunAlign(tracy, ref, input, prefix string, left, right int, stdout, stderr *os.File) (result AlignResult, err error) {
+	err = Align(tracy, ref, input, prefix, left, right, stdout, stderr)
 	if err != nil {
 		slog.Error("Align", "err", err)
 		return
@@ -106,8 +106,8 @@ func RunAlign(tracy, ref, input, prefix string, left, right int) (result AlignRe
 	return
 }
 
-func RunDecompose(tracy, ref, input, prefix string, left, right int) (result Result, err error) {
-	err = Decompose(tracy, ref, input, prefix, left, right)
+func RunDecompose(tracy, ref, input, prefix string, left, right int, stdout, stderr *os.File) (result Result, err error) {
+	err = Decompose(tracy, ref, input, prefix, left, right, stdout, stderr)
 	if err != nil {
 		slog.Error("Decompose", "err", err)
 		return
@@ -141,19 +141,24 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 
 	var left, right = 0, 0
 
-	result = simpleUtil.HandleError(RunBasecall(tracy, input, prefix, left, right))
+	var stdout = osUtil.Create(prefix + ".stdout.txt")
+	defer simpleUtil.DeferClose(stdout)
+	var stderr = osUtil.Create(prefix + ".stderr.txt")
+	defer simpleUtil.DeferClose(stderr)
+
+	result = simpleUtil.HandleError(RunBasecall(tracy, input, prefix, left, right, stdout, stderr))
 
 	// trim
 	// left = Trim
 	// right = max(Trim, len(result.BasecallPos)-MaxLength)
 
-	alignResult := simpleUtil.HandleError(RunAlign(tracy, ref, input, prefix, left, right))
+	alignResult := simpleUtil.HandleError(RunAlign(tracy, ref, input, prefix, left, right, stdout, stderr))
 	alignResult.CalAlign()
 	var summary = osUtil.Create(prefix + ".align.summary.txt")
 	defer simpleUtil.DeferClose(summary)
 	alignResult.Summary(summary)
 
-	result = simpleUtil.HandleError(RunDecompose(tracy, ref, input, prefix, left, right))
+	result = simpleUtil.HandleError(RunDecompose(tracy, ref, input, prefix, left, right, stdout, stderr))
 	result.AlignResult = &alignResult
 
 	result.Variants.CalVariants()
@@ -177,7 +182,6 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	}
 
 	return
-
 }
 
 func RunPair(tracy, ref, input1, input2, prefix string) (result1, result2 Result, err error) {
