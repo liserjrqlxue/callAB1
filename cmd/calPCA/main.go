@@ -161,6 +161,7 @@ func main() {
 
 	simpleUtil.CheckErr(os.MkdirAll(*outputDir, 0755))
 
+	var resultLines []string
 	for i, id := range seqList {
 		seq := seqMap[id]
 		slog.Info("seq", "index", i+1, "id", seq.ID, "start", seq.Start, "end", seq.End)
@@ -170,6 +171,14 @@ func main() {
 
 		seq.CreateFasta(prefix)
 		result := RunTracyBatch(id, prefix, *bin)
-		RecordSeq(seq, result, prefix)
+		lines := RecordSeq(seq, result, prefix)
+		resultLines = append(resultLines, lines...)
 	}
+
+	// 写入 result
+	resultFile := osUtil.Create(filepath.Join(*outputDir + "Result.txt"))
+	defer simpleUtil.DeferClose(resultFile)
+
+	fmtUtil.FprintStringArray(resultFile, resultTitle, "\t")
+	fmtUtil.FprintStringArray(resultFile, resultLines, "\n")
 }

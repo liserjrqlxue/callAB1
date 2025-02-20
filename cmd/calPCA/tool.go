@@ -101,7 +101,7 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 	return
 }
 
-func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, index string, offset int) {
+func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, index string, offset int) (resultLine string) {
 	var (
 		length = primer.End - primer.Start // 长度
 
@@ -135,21 +135,23 @@ func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, in
 	geoMeanAcc = math.Pow(yeild, 1.0/float64(length))
 
 	if n > 0 {
-		fmt.Printf(
-			"%s\t%s\t%3d-%3d\t%d-%d\t%d\t%d\t%d\t%f\t%f\n",
-			index,
-			primer.ID,
-			primer.Start+offset, primer.End+offset,
-			primer.Start, primer.End,
-			n,
-			len(variantSet),
-			len(variantRatio),
-			yeild, geoMeanAcc,
-		)
+		resultLine =
+			fmt.Sprintf(
+				"%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%f\t%f",
+				index,
+				primer.ID,
+				primer.Start+offset, primer.End+offset,
+				primer.Start, primer.End,
+				n,
+				len(variantSet),
+				len(variantRatio),
+				yeild, geoMeanAcc,
+			)
 	}
+	return
 }
 
-func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIndex, segOffset int) {
+func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIndex, segOffset int) (resultLines []string) {
 	var (
 		segStart = pair.RefStart + segOffset
 		segEnd   = pair.RefEnd + segOffset
@@ -159,17 +161,23 @@ func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIn
 	for i, primer := range pair.SubSeq {
 		index := fmt.Sprintf("%d.%d", pairIndex, i+1)
 		offset := segStart - pair.Start
-		RecordPrimer(primer, result, out, index, offset)
+		resultLine := RecordPrimer(primer, result, out, index, offset)
+		if resultLine != "" {
+			resultLines = append(resultLines, resultLine)
+		}
 	}
+	return
 }
 
-func RecordSeq(seq *Seq, result map[int][2]*tracy.Result, prefix string) {
+func RecordSeq(seq *Seq, result map[int][2]*tracy.Result, prefix string) (resultLines []string) {
 	out := osUtil.Create(prefix + ".result.txt")
 	defer simpleUtil.DeferClose(out)
 
 	for i, pair := range seq.SubSeq {
-		RecordPair(pair, result, out, i+1, seq.Start)
+		lines := RecordPair(pair, result, out, i+1, seq.Start)
+		resultLines = append(resultLines, lines...)
 	}
+	return
 }
 
 func CreateFasta(seq *Seq, prefix string) {
