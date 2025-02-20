@@ -134,17 +134,19 @@ func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, in
 	// 计算几何平均
 	geoMeanAcc = math.Pow(yeild, 1.0/float64(length))
 
-	fmt.Printf(
-		"%s\t%s\t%3d-%3d\t%d-%d\t%d\t%d\t%d\t%f\t%f\n",
-		index,
-		primer.ID,
-		primer.Start+offset, primer.End+offset,
-		primer.Start, primer.End,
-		n,
-		len(variantSet),
-		len(variantRatio),
-		yeild, geoMeanAcc,
-	)
+	if n > 0 {
+		fmt.Printf(
+			"%s\t%s\t%3d-%3d\t%d-%d\t%d\t%d\t%d\t%f\t%f\n",
+			index,
+			primer.ID,
+			primer.Start+offset, primer.End+offset,
+			primer.Start, primer.End,
+			n,
+			len(variantSet),
+			len(variantRatio),
+			yeild, geoMeanAcc,
+		)
+	}
 }
 
 func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIndex, segOffset int) {
