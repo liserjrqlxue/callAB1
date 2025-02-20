@@ -2,13 +2,10 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"log/slog"
-	"math"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
@@ -68,6 +65,13 @@ func (s *Seq) CreateSub(id string, start, end int) *Seq {
 	}
 	s.SubSeq = append(s.SubSeq, subSeq)
 	return subSeq
+}
+
+func (s *Seq) CreateFasta(prefix string) {
+	fa := osUtil.Create(prefix + ".fa")
+	defer simpleUtil.DeferClose(fa)
+
+	fmtUtil.Fprintf(fa, ">%s\n%s\n", s.ID, s.Seq)
 }
 
 func main() {
@@ -159,93 +163,13 @@ func main() {
 
 	for i, id := range seqList {
 		seq := seqMap[id]
-		fmt.Printf("%d\t%s\t\t%3d-%-3d\n", i+1, seq.ID, seq.Start, seq.End)
+		slog.Info("seq", "index", i+1, "id", seq.ID, "start", seq.Start, "end", seq.End)
 
 		// 创建 Fasta
 		prefix := filepath.Join(*outputDir, id)
-		fa := osUtil.Create(prefix + ".fa")
-		fmtUtil.Fprintf(fa, ">%s\n%s\n", id, seq.Seq)
-		simpleUtil.CheckErr(fa.Close())
 
-		resultF := osUtil.Create(prefix + ".result.txt")
-
-		// 遍历分析sanger文件 -> result
+		seq.CreateFasta(prefix)
 		result := RunTracyBatch(id, prefix, *bin)
-
-		for j, pair := range seq.SubSeq {
-			segStart := pair.RefStart + seq.Start
-			segEnd := pair.RefEnd + seq.Start
-
-			slog.Info("pair", "id", pair.ID, "segStart", segStart, "segEnd", segEnd, "start", pair.Start, "end", pair.End)
-			for k, primer := range pair.SubSeq {
-				start := primer.Start - pair.Start + segStart
-				end := primer.End - pair.Start + segStart
-				length := end - start
-
-				variantSet := make(map[string]bool)
-				n := 0
-				// 遍历结果
-				for l := range result {
-					keep := false
-
-					result1 := result[l][0]
-					result2 := result[l][1]
-
-					index := fmt.Sprintf("%d.%d.%d", i+1, j+1, k+1)
-					id := primer.ID
-					for _, v := range result1.Variants.Variants {
-						if RecordVariant(
-							v, resultF, index, id, l, start, end,
-							result1.Variants.HetCount,
-							result1.AlignResult.BoundMatchRatio,
-							variantSet,
-						) {
-							keep = true
-						}
-					}
-					for _, v := range result[l][1].Variants.Variants {
-						if RecordVariant(
-							v, resultF, index, id, l, start, end,
-							result2.Variants.HetCount,
-							result2.AlignResult.BoundMatchRatio,
-							variantSet,
-						) {
-							keep = true
-						}
-					}
-					if keep {
-						n++
-					}
-				}
-				// 按照位置统计
-				variantRatio := make(map[string]float64)
-				for key := range variantSet {
-					pos := strings.Split(key, "-")[1]
-					variantRatio[pos]++
-				}
-				// 计算收率
-				yeild := 1.0
-				for pos := range variantRatio {
-					variantRatio[pos] /= float64(n)
-					yeild *= 1.0 - variantRatio[pos]
-				}
-				// 计算几何平均
-				geoMeanAcc := math.Pow(yeild, 1.0/float64(length))
-				fmt.Printf(
-					"%d.%d.%d\t%s\t%3d-%3d\t%d-%d\t%d\t%d\t%d\t%f\t%f\n",
-					i+1, j+1, k+1,
-					primer.ID,
-					start, end,
-					primer.Start, primer.End,
-					n,
-					len(variantSet),
-					len(variantRatio),
-					yeild, geoMeanAcc,
-				)
-			}
-		}
-
-		simpleUtil.CheckErr(resultF.Close())
-
+		RecordSeq(seq, result, i+1, prefix)
 	}
 }
