@@ -1,10 +1,10 @@
 package main
 
 import (
-	"callAB1/pkg/tracy"
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
@@ -169,44 +169,20 @@ func main() {
 
 		resultF := osUtil.Create(prefix + ".result.txt")
 
-		tag := []byte(strings.Split(id, "_")[1][:4])
-		tag[2] = 'B'
-		result := make(map[int][2]*tracy.Result)
-		for j := 1; j < 33; j++ {
-			prefix_j := fmt.Sprintf("%s_%d", prefix, j)
-			path1 := filepath.Join(*sangerDir, fmt.Sprintf("BGA-%s-TY1-%d-T7.ab1", tag, j))
-			path2 := filepath.Join(*sangerDir, fmt.Sprintf("BGA-%s-TY1-%d-T7-Term.ab1", tag, j))
-
-			ok1 := osUtil.FileExists(path1)
-			ok2 := osUtil.FileExists(path2)
-			if ok1 && ok2 {
-				// run tracy
-				result1, result2, err := tracy.RunPair(*bin, prefix+".fa", path1, path2, prefix_j)
-				simpleUtil.CheckErr(err)
-				result[j] = [2]*tracy.Result{&result1, &result2}
-			} else if !ok1 && !ok2 {
-				log.Printf("sanger no found:[%s:%v,%s:%v]", path1, ok1, path2, ok2)
-				continue
-			} else {
-				log.Fatalf("sanger pair fail:[%s:%v,%s:%v]", path1, ok1, path2, ok2)
-			}
-		}
+		// 遍历分析sanger文件 -> result
+		result := RunTracyBatch(id, prefix, *bin)
 
 		for j, pair := range seq.SubSeq {
-			fmt.Printf("%d.%d\t%s\t\t%3d-%3d\t%d\t%d\n", i+1, j+1, pair.ID, pair.RefStart+seq.Start, pair.RefEnd+seq.Start, pair.Start, pair.End)
+			segStart := pair.RefStart + seq.Start
+			segEnd := pair.RefEnd + seq.Start
+
+			slog.Info("pair", "id", pair.ID, "segStart", segStart, "segEnd", segEnd, "start", pair.Start, "end", pair.End)
 			for k, primer := range pair.SubSeq {
-				start := primer.Start - pair.Start + pair.RefStart + seq.Start
-				end := primer.End - pair.Start + pair.RefStart + seq.Start
+				start := primer.Start - pair.Start + segStart
+				end := primer.End - pair.Start + segStart
 				length := end - start
 
 				variantSet := make(map[string]bool)
-				fmt.Printf(
-					"%d.%d.%d\t%s\t%3d-%3d\t%d\t%d\n",
-					i+1, j+1, k+1,
-					primer.ID,
-					start, end,
-					primer.Start, primer.End,
-				)
 				n := 0
 				// 遍历结果
 				for l := range result {
@@ -272,7 +248,17 @@ func main() {
 				}
 				// 计算几何平均
 				geoMeanAcc := math.Pow(yeild, 1.0/float64(length))
-				fmt.Printf("%d.%d.%d\t%s\t%3d-%3d\t%d\t%f\n", i+1, j+1, k+1, primer.ID, start, end, length, geoMeanAcc)
+				fmt.Printf(
+					"%d.%d.%d\t%s\t%3d-%3d\t%d-%d\t%d\t%d\t%d\t%f\t%f\n",
+					i+1, j+1, k+1,
+					primer.ID,
+					start, end,
+					primer.Start, primer.End,
+					n,
+					len(variantSet),
+					len(variantRatio),
+					yeild, geoMeanAcc,
+				)
 			}
 		}
 
