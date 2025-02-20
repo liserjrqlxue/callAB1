@@ -46,7 +46,7 @@ func RunTracyBatch(id, prefix, bin string) map[int][2]*tracy.Result {
 	return result
 }
 
-func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerIndex, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool) (keep bool) {
+func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerIndex, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool, pass bool) {
 	if v.Pos > start && v.Pos <= end {
 		fmtUtil.Fprintf(
 			out,
@@ -58,13 +58,11 @@ func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerIndex
 			boundMatchRatio, hetCount,
 			v,
 		)
-		if boundMatchRatio > 0.9 && hetCount < 50 {
-			keep = true
+		if pass {
 			key := fmt.Sprintf("%d-%d-%s-%s", sangerIndex, v.Pos, v.Ref, v.Alt)
 			variantSet[key] = true
 		}
 	}
-	return
 }
 
 func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, index string, sangerIndex, offset int, variantSet map[string]bool) (keep bool) {
@@ -77,25 +75,27 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 		result2 = result[sangerIndex][1]
 	)
 
+	if result1.Pass || result2.Pass {
+		keep = true
+	}
+
 	for _, v := range result1.Variants.Variants {
-		if RecordVariant(
+		RecordVariant(
 			v, out, index, id, sangerIndex, start, end,
 			result1.Variants.HetCount,
 			result1.AlignResult.BoundMatchRatio,
 			variantSet,
-		) {
-			keep = true
-		}
+			result1.Pass,
+		)
 	}
-	for _, v := range result[sangerIndex][1].Variants.Variants {
-		if RecordVariant(
+	for _, v := range result2.Variants.Variants {
+		RecordVariant(
 			v, out, index, id, sangerIndex, start, end,
 			result2.Variants.HetCount,
 			result2.AlignResult.BoundMatchRatio,
 			variantSet,
-		) {
-			keep = true
-		}
+			result2.Pass,
+		)
 	}
 	return
 }
