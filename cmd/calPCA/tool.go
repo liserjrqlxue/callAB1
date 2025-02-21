@@ -260,14 +260,18 @@ func WriteSlice(path, format string, title []string, data [][]interface{}) {
 func GetTracyStatusLines(id string, result map[int][2]*tracy.Result) (data [][]interface{}) {
 	for sangerPairIndex, pairResult := range result {
 		for sangerIndex, result := range pairResult {
-			slog.Info("GetTracyStatusLines", "id", id, "sangerPairIndex", sangerPairIndex, "sangerIndex", sangerIndex, "result", result)
+			slog.Debug("GetTracyStatusLines", "id", id, "sangerPairIndex", sangerPairIndex, "sangerIndex", sangerIndex, "result", result)
 			if result == nil {
 				continue
+			}
+			variantCount := 0
+			if result.Variants != nil {
+				variantCount = len(result.Variants.Variants)
 			}
 			row := []interface{}{
 				id, sangerPairIndex, sangerIndex,
 				result.Status, result.Pass,
-				len(result.Variants.Variants),
+				variantCount,
 				result.Variants.HetCount,
 				result.AlignResult.BoundMatchRatio,
 			}
