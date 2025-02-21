@@ -60,7 +60,7 @@ func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerPairI
 			v,
 		)
 		if pass {
-			key := fmt.Sprintf("%d-%d-%s-%s", sangerPairIndex, v.Pos, v.Ref, v.Alt)
+			key := fmt.Sprintf("%d-%d-%s-%s-%s", sangerPairIndex, v.Pos, v.Ref, v.Alt, v.Type)
 			variantSet[key] = true
 		}
 	}
@@ -81,6 +81,9 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 	}
 
 	for _, v := range result1.Variants.Variants {
+		if v.SV {
+			v.Type = "SV"
+		}
 		RecordVariant(
 			v, out, index, id, sangerIndex, 1, start, end,
 			result1.Variants.HetCount,
@@ -103,49 +106,73 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 
 func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, index string, offset int) (resultLine string) {
 	var (
-		length = primer.End - primer.Start // 长度
+		length            = primer.End - primer.Start // 长度
+		n                 = 0                         // sanger 个数
+		ln                = 0                         // length * n
+		yeildPercent      = 1.0                       // 收率
+		geoMeanAccPercent = 1.0                       // 平均准确率
 
-		n          = 0   // sanger 个数
-		yeild      = 1.0 // 收率
-		geoMeanAcc = 1.0 // 平均准确率
-
-		variantSet   = make(map[string]bool)
-		variantRatio = make(map[string]float64)
+		vSet         = make(map[string]bool)
+		vPosRatio    = make(map[string]float64)
+		vTypeCounts  = make(map[string]int)
+		vTypePercent = make(map[string]float64)
 	)
 	// 遍历结果
 	for sangerPairIndex := range result {
-		if Record1Result(primer, result, out, index, sangerPairIndex, offset, variantSet) {
+		if Record1Result(primer, result, out, index, sangerPairIndex, offset, vSet) {
 			n++
 		}
 	}
+	ln = length * n
 
 	// 按照位置统计
-	for key := range variantSet {
-		pos := strings.Split(key, "-")[1]
-		variantRatio[pos]++
+	for key := range vSet {
+		spt := strings.Split(key, "-")
+		vPosRatio[spt[1]]++
+		vTypeCounts[spt[4]]++
 	}
 
 	// 计算收率
-	for pos := range variantRatio {
-		variantRatio[pos] /= float64(n)
-		yeild *= 1.0 - variantRatio[pos]
+	for pos := range vPosRatio {
+		vPosRatio[pos] /= float64(n)
+		yeildPercent *= 1.0 - vPosRatio[pos]
 	}
 
 	// 计算几何平均
-	geoMeanAcc = math.Pow(yeild, 1.0/float64(length))
+	geoMeanAccPercent = math.Pow(yeildPercent, 1.0/float64(length)) * 100.0
+	yeildPercent *= 100
+
+	// 计算类型比率
+	for tp := range vTypeCounts {
+		vTypePercent[tp] = float64(vTypeCounts[tp]*100) / float64(ln)
+	}
 
 	if n > 0 {
+		vErrPercent := float64(len(vSet)*100) / float64(ln)
+		vAccPercent := 100.0 - vErrPercent
 		resultLine =
 			fmt.Sprintf(
-				"%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%f\t%f",
+				"%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%",
 				index,
 				primer.ID,
 				primer.Start+offset, primer.End+offset,
 				primer.Start, primer.End,
+				length,
 				n,
-				len(variantSet),
-				len(variantRatio),
-				yeild, geoMeanAcc,
+				len(vPosRatio),
+				len(vSet),
+				vTypeCounts["SNV"],
+				vTypeCounts["Insertion"],
+				vTypeCounts["Deletion"],
+				vTypeCounts["SV"],
+				vTypePercent["SNV"],
+				vTypePercent["Insertion"],
+				vTypePercent["Deletion"],
+				vTypePercent["SV"],
+				vErrPercent,
+				vAccPercent,
+				yeildPercent,
+				geoMeanAccPercent,
 			)
 	}
 	return
@@ -184,4 +211,29 @@ func CreateFasta(seq *Seq, prefix string) {
 	fa := osUtil.Create(prefix + ".fa")
 	fmtUtil.Fprintf(fa, ">%s\n%s\n", seq.ID, seq.Seq)
 	simpleUtil.CheckErr(fa.Close())
+}
+
+func WriteResultTxt(path string, title, lines []string) {
+	resultFile := osUtil.Create(path)
+	defer simpleUtil.DeferClose(resultFile)
+
+	fmtUtil.FprintStringArray(resultFile, title, "\t")
+	fmtUtil.FprintStringArray(resultFile, lines, "\n")
+}
+
+func GetTracyStatusLines(id string, result map[int][2]*tracy.Result) (lines []string) {
+	for sangerPairIndex, pairResult := range result {
+		for sangerIndex, result := range pairResult {
+			line := fmt.Sprintf(
+				"%s\t%d\t%d\t%s\t%v\t%d\t%d\t%f\n",
+				id, sangerPairIndex, sangerIndex,
+				result.Status, result.Pass,
+				len(result.Variants.Variants),
+				result.Variants.HetCount,
+				result.AlignResult.BoundMatchRatio,
+			)
+			lines = append(lines, line)
+		}
+	}
+	return
 }
