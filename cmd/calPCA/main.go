@@ -2,10 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
@@ -174,12 +176,9 @@ func main() {
 
 		seq.CreateFasta(prefix)
 		result := RunTracyBatch(id, prefix, *bin)
-		lines := RecordSeq(seq, result, prefix)
 
-		if result != nil {
-			tracyStatusLines = append(tracyStatusLines, GetTracyStatusLines(id, result)...)
-		}
-		resultLines = append(resultLines, lines...)
+		tracyStatusLines = append(tracyStatusLines, GetTracyStatusLines(id, result)...)
+		resultLines = append(resultLines, RecordSeq(seq, result, prefix)...)
 	}
 
 	// 写入 result
@@ -187,4 +186,13 @@ func main() {
 
 	// 写入 tracy result
 	WriteResultTxt(filepath.Join(*outputDir, "TracyStatus.txt"), tracyStatusTitle, tracyStatusLines)
+
+	// 写入 excel
+	simpleUtil.HandleError(inputXlsx.NewSheet("Sanger结果"))
+	inputXlsx.SetSheetRow("Sanger结果", "A1", &ResultTitle)
+	for i, line := range resultLines {
+		row := strings.Split(line, "\t")
+		inputXlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", i+2), &row)
+	}
+	inputXlsx.SaveAs(filepath.Join(*outputDir, "Sanger结果.xlsx"))
 }
