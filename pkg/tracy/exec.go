@@ -110,20 +110,20 @@ func RunDecompose(tracy, ref, input, prefix string, left, right int, stdout, std
 	err = Decompose(tracy, ref, input, prefix, left, right, stdout, stderr)
 	if err != nil {
 		slog.Error("Decompose", "err", err)
-		return
+		return Result{Status: "DecomposeFail", Pass: false}, err
 	}
 
 	var resultJson []byte
 	resultJson, err = os.ReadFile(prefix + ".decompose.json")
 	if err != nil {
 		slog.Error("Load decompose.json", "json", prefix+".decompose.json", "err", err)
-		return
+		return Result{Status: "DecomposeLoadFail", Pass: false}, err
 	}
 
 	err = json.Unmarshal(resultJson, &result)
 	if err != nil {
 		slog.Error("Unmarshal decompose.json", "jsonByte", resultJson, "err", err)
-		return
+		return Result{Status: "DecomposeUnmarshalFail", Pass: false}, err
 	}
 
 	return
@@ -158,22 +158,23 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	defer simpleUtil.DeferClose(summary)
 	alignResult.Summary(summary)
 
-	result = simpleUtil.HandleError(RunDecompose(tracy, ref, input, prefix, left, right, stdout, stderr))
+	result, err = RunDecompose(tracy, ref, input, prefix, left, right, stdout, stderr)
 	result.AlignResult = &alignResult
-
-	result.Variants.CalVariants()
-	var out = osUtil.Create(prefix + ".decompose.variants.txt")
-	defer simpleUtil.DeferClose(out)
-	// output title
-	fmtUtil.FprintStringArray(out, append(result.Variants.Columns, "xrange1", "xrange2"), "\t")
-	fmtUtil.Fprintln(out, result.Variants.String())
+	if err != nil {
+		result.Variants.CalVariants()
+		var out = osUtil.Create(prefix + ".decompose.variants.txt")
+		defer simpleUtil.DeferClose(out)
+		// output title
+		fmtUtil.FprintStringArray(out, append(result.Variants.Columns, "xrange1", "xrange2"), "\t")
+		fmtUtil.Fprintln(out, result.Variants.String())
+	}
 
 	// 评估
 	if result.AlignResult.BoundMatchRatio < BoundMatchRaitoLimit {
 		result.Status += "LowMatch"
 	}
 
-	if result.Variants.HetCount > HetCountLimit {
+	if result.Variants != nil && result.Variants.HetCount > HetCountLimit {
 		result.Status += "HighHet"
 	}
 	if result.Status == "" {
