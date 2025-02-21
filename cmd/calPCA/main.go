@@ -164,8 +164,12 @@ func main() {
 		}
 		pair.RefSeq = refSeq
 		refSeq.SubSeq = append(refSeq.SubSeq, pair)
-		pair.CreateSub(pair.ID+"_1", primer1pos[0], primer1pos[1])
-		pair.CreateSub(pair.ID+"_2", primer2pos[0], primer2pos[1])
+		if *renameTxt != "" {
+			pair.CreateSub(pair.ID, primer1pos[0], primer1pos[1])
+		} else {
+			pair.CreateSub(pair.ID+"_1", primer1pos[0], primer1pos[1])
+			pair.CreateSub(pair.ID+"_2", primer2pos[0], primer2pos[1])
+		}
 	}
 
 	simpleUtil.CheckErr(os.MkdirAll(*outputDir, 0755))
