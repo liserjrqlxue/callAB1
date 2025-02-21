@@ -102,7 +102,7 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 		result2 = result[sangerIndex][1]
 	)
 
-	if result1.Pass || result2.Pass {
+	if (result1 != nil && result1.Pass) || (result2 != nil && result2.Pass) {
 		keep = true
 	}
 
