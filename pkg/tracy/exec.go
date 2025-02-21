@@ -160,7 +160,7 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 
 	result, err = RunDecompose(tracy, ref, input, prefix, left, right, stdout, stderr)
 	result.AlignResult = &alignResult
-	if err != nil {
+	if err == nil {
 		result.Variants.CalVariants()
 		var out = osUtil.Create(prefix + ".decompose.variants.txt")
 		defer simpleUtil.DeferClose(out)
