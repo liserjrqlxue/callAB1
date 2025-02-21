@@ -35,6 +35,22 @@ func RunTracy(id, tag, prefix, bin string, sangerIndex int, result map[int][2]*t
 	}
 }
 
+func RunTracyCY0130(id, prefix, bin string, sangerIndex int, result map[int][2]*tracy.Result) {
+	sangerPrefix := fmt.Sprintf("%s_%d", prefix, sangerIndex)
+	path := filepath.Join(*sangerDir, fmt.Sprintf("%s-%d-T7.ab1", id, sangerIndex))
+
+	ok := osUtil.FileExists(path)
+	if !ok {
+		slog.Info("sanger file no found", "id", id, "sangerIndex", sangerIndex, "path", path, "ok", ok)
+		return
+	}
+
+	// run tracy
+	result1, err := tracy.RunSingle(bin, prefix+".fa", path, sangerPrefix)
+	simpleUtil.CheckErr(err)
+	result[sangerIndex] = [2]*tracy.Result{&result1}
+}
+
 // 遍历分析sanger文件 -> result
 func RunTracyBatch(id, prefix, bin string) map[int][2]*tracy.Result {
 	result := make(map[int][2]*tracy.Result)
@@ -46,6 +62,14 @@ func RunTracyBatch(id, prefix, bin string) map[int][2]*tracy.Result {
 	return result
 }
 
+// 遍历分析sanger文件 -> result
+func RunTracyBatchCy0130(id, prefix, bin string) map[int][2]*tracy.Result {
+	result := make(map[int][2]*tracy.Result)
+	for sangerIndex := 1; sangerIndex < 33; sangerIndex++ {
+		RunTracyCY0130(id, prefix, bin, sangerIndex, result)
+	}
+	return result
+}
 func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerPairIndex, sangerIndex, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool, pass bool) {
 	if v.Pos > start && v.Pos <= end {
 		fmtUtil.Fprintf(
@@ -80,26 +104,30 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 		keep = true
 	}
 
-	for _, v := range result1.Variants.Variants {
-		if v.SV {
-			v.Type = "SV"
+	if result1 != nil {
+		for _, v := range result1.Variants.Variants {
+			if v.SV {
+				v.Type = "SV"
+			}
+			RecordVariant(
+				v, out, index, id, sangerIndex, 1, start, end,
+				result1.Variants.HetCount,
+				result1.AlignResult.BoundMatchRatio,
+				variantSet,
+				result1.Pass,
+			)
 		}
-		RecordVariant(
-			v, out, index, id, sangerIndex, 1, start, end,
-			result1.Variants.HetCount,
-			result1.AlignResult.BoundMatchRatio,
-			variantSet,
-			result1.Pass,
-		)
 	}
-	for _, v := range result2.Variants.Variants {
-		RecordVariant(
-			v, out, index, id, sangerIndex, 2, start, end,
-			result2.Variants.HetCount,
-			result2.AlignResult.BoundMatchRatio,
-			variantSet,
-			result2.Pass,
-		)
+	if result2 != nil {
+		for _, v := range result2.Variants.Variants {
+			RecordVariant(
+				v, out, index, id, sangerIndex, 2, start, end,
+				result2.Variants.HetCount,
+				result2.AlignResult.BoundMatchRatio,
+				variantSet,
+				result2.Pass,
+			)
+		}
 	}
 	return
 }
@@ -230,6 +258,10 @@ func WriteSlice(path, format string, title []string, data [][]interface{}) {
 func GetTracyStatusLines(id string, result map[int][2]*tracy.Result) (data [][]interface{}) {
 	for sangerPairIndex, pairResult := range result {
 		for sangerIndex, result := range pairResult {
+			slog.Info("GetTracyStatusLines", "id", id, "sangerPairIndex", sangerPairIndex, "sangerIndex", sangerIndex, "result", result)
+			if result == nil {
+				continue
+			}
 			row := []interface{}{
 				id, sangerPairIndex, sangerIndex,
 				result.Status, result.Pass,

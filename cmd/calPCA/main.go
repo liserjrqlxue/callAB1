@@ -1,6 +1,7 @@
 package main
 
 import (
+	"callAB1/pkg/tracy"
 	"flag"
 	"fmt"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"github.com/liserjrqlxue/goUtil/osUtil"
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 	"github.com/liserjrqlxue/goUtil/stringsUtil"
+	"github.com/liserjrqlxue/goUtil/textUtil"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -36,6 +38,11 @@ var (
 		"tracy",
 		"tracy",
 		"https://github.com/gear-genomics/tracy binary path",
+	)
+	renameTxt = flag.String(
+		"r",
+		"",
+		"rename file for CY0130",
 	)
 )
 
@@ -163,9 +170,15 @@ func main() {
 	simpleUtil.CheckErr(os.MkdirAll(*outputDir, 0755))
 
 	var (
+		cy0130           bool
+		rename           = make(map[string]string)
 		resultLines      [][]interface{}
 		tracyStatusLines [][]interface{}
 	)
+	if *renameTxt != "" {
+		cy0130 = true
+		rename = simpleUtil.HandleError(textUtil.File2Map(*renameTxt, "\t", false))
+	}
 	for i, id := range seqList {
 		seq := seqMap[id]
 		slog.Info("seq", "index", i+1, "id", seq.ID, "start", seq.Start, "end", seq.End)
@@ -174,7 +187,13 @@ func main() {
 		prefix := filepath.Join(*outputDir, id)
 
 		seq.CreateFasta(prefix)
-		result := RunTracyBatch(id, prefix, *bin)
+		var result map[int][2]*tracy.Result
+		if cy0130 {
+			result = RunTracyBatchCy0130(rename[id], prefix, *bin)
+		} else {
+			result = RunTracyBatch(id, prefix, *bin)
+
+		}
 
 		tracyStatusLines = append(tracyStatusLines, GetTracyStatusLines(id, result)...)
 		resultLines = append(resultLines, RecordSeq(seq, result, prefix)...)
