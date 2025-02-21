@@ -247,13 +247,15 @@ func WriteResultTxt(path string, title, lines []string) {
 	fmtUtil.FprintStringArray(resultFile, lines, "\n")
 }
 
-func WriteSlice(path, format string, title []string, data [][]interface{}) {
+func WriteSlice(path, format string, title, list []string, data map[string][][]interface{}) {
 	resultFile := osUtil.Create(path)
 	defer simpleUtil.DeferClose(resultFile)
 
 	fmtUtil.FprintStringArray(resultFile, title, "\t")
-	for _, v := range data {
-		fmtUtil.Fprintf(resultFile, format, v...)
+	for _, v := range list {
+		for _, s := range data[v] {
+			fmtUtil.Fprintf(resultFile, format, s...)
+		}
 	}
 }
 

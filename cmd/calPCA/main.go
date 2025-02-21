@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
@@ -172,45 +173,79 @@ func main() {
 	var (
 		cy0130           bool
 		rename           = make(map[string]string)
-		resultLines      [][]interface{}
-		tracyStatusLines [][]interface{}
+		resultLines      = make(map[string][][]interface{})
+		tracyStatusLines = make(map[string][][]interface{})
 	)
 	if *renameTxt != "" {
 		cy0130 = true
 		rename = simpleUtil.HandleError(textUtil.File2Map(*renameTxt, "\t", false))
 	}
+
+	results := make(chan tracyResult, len(seqList)) // 缓冲通道提升性能
+	var wg sync.WaitGroup
 	for i, id := range seqList {
-		seq := seqMap[id]
-		slog.Info("seq", "index", i+1, "id", seq.ID, "start", seq.Start, "end", seq.End)
+		wg.Add(1)
+		go func(i int, id string) {
+			defer wg.Done()
+			results <- processSeq(i, id, cy0130, rename, *outputDir, *bin, seqMap)
+		}(i, id)
+	}
 
-		// 创建 Fasta
-		prefix := filepath.Join(*outputDir, id)
+	// 等待所有任务完成并关闭通道
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
 
-		seq.CreateFasta(prefix)
-		var result map[int][2]*tracy.Result
-		if cy0130 {
-			result = RunTracyBatchCy0130(rename[id], prefix, *bin)
-		} else {
-			result = RunTracyBatch(id, prefix, *bin)
-		}
-
-		tracyStatusLines = append(tracyStatusLines, GetTracyStatusLines(id, result)...)
-		resultLines = append(resultLines, RecordSeq(seq, result, prefix)...)
+	for result := range results {
+		resultLines[result.id] = result.resultLines
+		tracyStatusLines[result.id] = result.statusLines
 	}
 
 	// 写入 result
 	resultFormat := "%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\n"
-	WriteSlice(filepath.Join(*outputDir, "Result.txt"), resultFormat, ResultTitle, resultLines)
+	WriteSlice(filepath.Join(*outputDir, "Result.txt"), resultFormat, ResultTitle, seqList, resultLines)
 
 	// 写入 tracy result
 	tracyFormat := "%s\t%d\t%d\t%s\t%v\t%d\t%d\t%f\n"
-	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, tracyStatusLines)
+	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, seqList, tracyStatusLines)
 
 	// 写入 excel
 	simpleUtil.HandleError(inputXlsx.NewSheet("Sanger结果"))
 	inputXlsx.SetSheetRow("Sanger结果", "A1", &ResultTitle)
-	for i, line := range resultLines {
-		inputXlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", i+2), &line)
+	row := 2
+	for _, id := range seqList {
+		for _, line := range resultLines[id] {
+			inputXlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", row), &line)
+			row++
+		}
 	}
 	inputXlsx.SaveAs(filepath.Join(*outputDir, "Sanger结果.xlsx"))
+}
+
+type tracyResult struct {
+	id          string
+	statusLines [][]interface{}
+	resultLines [][]interface{}
+}
+
+func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputDir string, bin string, seqMap map[string]*Seq) tracyResult {
+	seq := seqMap[id]
+	slog.Info("seq", "index", i+1, "id", seq.ID, "start", seq.Start, "end", seq.End)
+
+	prefix := filepath.Join(outputDir, id)
+	seq.CreateFasta(prefix)
+
+	var result map[int][2]*tracy.Result
+	if cy0130 {
+		result = RunTracyBatchCy0130(rename[id], prefix, bin)
+	} else {
+		result = RunTracyBatch(id, prefix, bin)
+	}
+
+	return tracyResult{
+		id:          id,
+		statusLines: GetTracyStatusLines(id, result),
+		resultLines: RecordSeq(seq, result, prefix),
+	}
 }
