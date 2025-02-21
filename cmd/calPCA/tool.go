@@ -104,7 +104,7 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 	return
 }
 
-func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, index string, offset int) (resultLine string) {
+func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, index string, offset int) (resultLine []interface{}) {
 	var (
 		length            = primer.End - primer.Start // 长度
 		n                 = 0                         // sanger 个数
@@ -150,35 +150,33 @@ func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, in
 	if n > 0 {
 		vErrPercent := float64(len(vSet)*100) / float64(ln)
 		vAccPercent := 100.0 - vErrPercent
-		resultLine =
-			fmt.Sprintf(
-				"%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%",
-				index,
-				primer.ID,
-				primer.Start+offset, primer.End+offset,
-				primer.Start, primer.End,
-				length,
-				n,
-				len(vPosRatio),
-				len(vSet),
-				vTypeCounts["SNV"],
-				vTypeCounts["Insertion"],
-				vTypeCounts["Deletion"],
-				vTypeCounts["SV"],
-				vTypePercent["SNV"],
-				vTypePercent["Insertion"],
-				vTypePercent["Deletion"],
-				vTypePercent["SV"],
-				vErrPercent,
-				vAccPercent,
-				yeildPercent,
-				geoMeanAccPercent,
-			)
+		resultLine = []interface{}{
+			index,
+			primer.ID,
+			primer.Start + offset, primer.End + offset,
+			primer.Start, primer.End,
+			length,
+			n,
+			len(vPosRatio),
+			len(vSet),
+			vTypeCounts["SNV"],
+			vTypeCounts["Insertion"],
+			vTypeCounts["Deletion"],
+			vTypeCounts["SV"],
+			vTypePercent["SNV"],
+			vTypePercent["Insertion"],
+			vTypePercent["Deletion"],
+			vTypePercent["SV"],
+			vErrPercent,
+			vAccPercent,
+			yeildPercent,
+			geoMeanAccPercent,
+		}
 	}
 	return
 }
 
-func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIndex, segOffset int) (resultLines []string) {
+func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIndex, segOffset int) (resultLines [][]interface{}) {
 	var (
 		segStart = pair.RefStart + segOffset
 		segEnd   = pair.RefEnd + segOffset
@@ -189,14 +187,12 @@ func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIn
 		index := fmt.Sprintf("%d.%d", pairIndex, i+1)
 		offset := segStart - pair.Start
 		resultLine := RecordPrimer(primer, result, out, index, offset)
-		if resultLine != "" {
-			resultLines = append(resultLines, resultLine)
-		}
+		resultLines = append(resultLines, resultLine)
 	}
 	return
 }
 
-func RecordSeq(seq *Seq, result map[int][2]*tracy.Result, prefix string) (resultLines []string) {
+func RecordSeq(seq *Seq, result map[int][2]*tracy.Result, prefix string) (resultLines [][]interface{}) {
 	out := osUtil.Create(prefix + ".result.txt")
 	defer simpleUtil.DeferClose(out)
 
@@ -221,18 +217,27 @@ func WriteResultTxt(path string, title, lines []string) {
 	fmtUtil.FprintStringArray(resultFile, lines, "\n")
 }
 
-func GetTracyStatusLines(id string, result map[int][2]*tracy.Result) (lines []string) {
+func WriteSlice(path, format string, title []string, data [][]interface{}) {
+	resultFile := osUtil.Create(path)
+	defer simpleUtil.DeferClose(resultFile)
+
+	fmtUtil.FprintStringArray(resultFile, title, "\t")
+	for _, v := range data {
+		fmtUtil.Fprintf(resultFile, format, v...)
+	}
+}
+
+func GetTracyStatusLines(id string, result map[int][2]*tracy.Result) (data [][]interface{}) {
 	for sangerPairIndex, pairResult := range result {
 		for sangerIndex, result := range pairResult {
-			line := fmt.Sprintf(
-				"%s\t%d\t%d\t%s\t%v\t%d\t%d\t%f\n",
+			row := []interface{}{
 				id, sangerPairIndex, sangerIndex,
 				result.Status, result.Pass,
 				len(result.Variants.Variants),
 				result.Variants.HetCount,
 				result.AlignResult.BoundMatchRatio,
-			)
-			lines = append(lines, line)
+			}
+			data = append(data, row)
 		}
 	}
 	return

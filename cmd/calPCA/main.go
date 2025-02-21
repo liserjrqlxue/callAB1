@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
@@ -164,8 +163,8 @@ func main() {
 	simpleUtil.CheckErr(os.MkdirAll(*outputDir, 0755))
 
 	var (
-		resultLines      []string
-		tracyStatusLines []string
+		resultLines      [][]interface{}
+		tracyStatusLines [][]interface{}
 	)
 	for i, id := range seqList {
 		seq := seqMap[id]
@@ -182,17 +181,18 @@ func main() {
 	}
 
 	// 写入 result
-	WriteResultTxt(filepath.Join(*outputDir, "Result.txt"), ResultTitle, resultLines)
+	resultFormat := "%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\n"
+	WriteSlice(filepath.Join(*outputDir, "Result.txt"), resultFormat, ResultTitle, resultLines)
 
 	// 写入 tracy result
-	WriteResultTxt(filepath.Join(*outputDir, "TracyStatus.txt"), tracyStatusTitle, tracyStatusLines)
+	tracyFormat := "%s\t%d\t%d\t%s\t%v\t%d\t%d\t%f\n"
+	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, tracyStatusLines)
 
 	// 写入 excel
 	simpleUtil.HandleError(inputXlsx.NewSheet("Sanger结果"))
 	inputXlsx.SetSheetRow("Sanger结果", "A1", &ResultTitle)
 	for i, line := range resultLines {
-		row := strings.Split(line, "\t")
-		inputXlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", i+2), &row)
+		inputXlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", i+2), &line)
 	}
 	inputXlsx.SaveAs(filepath.Join(*outputDir, "Sanger结果.xlsx"))
 }
