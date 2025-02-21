@@ -106,7 +106,7 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 		keep = true
 	}
 
-	if result1 != nil {
+	if result1 != nil && result1.Variants != nil {
 		for _, v := range result1.Variants.Variants {
 			if v.SV {
 				v.Type = "SV"
@@ -120,7 +120,7 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 			)
 		}
 	}
-	if result2 != nil {
+	if result2 != nil && result2.Variants != nil {
 		for _, v := range result2.Variants.Variants {
 			RecordVariant(
 				v, out, index, id, sangerIndex, 2, start, end,
@@ -264,15 +264,18 @@ func GetTracyStatusLines(id string, result map[int][2]*tracy.Result) (data [][]i
 			if result == nil {
 				continue
 			}
+
 			variantCount := 0
+			hetCount := 0
 			if result.Variants != nil {
 				variantCount = len(result.Variants.Variants)
+				hetCount = result.Variants.HetCount
 			}
 			row := []interface{}{
 				id, sangerPairIndex, sangerIndex,
 				result.Status, result.Pass,
 				variantCount,
-				result.Variants.HetCount,
+				hetCount,
 				result.AlignResult.BoundMatchRatio,
 			}
 			data = append(data, row)
