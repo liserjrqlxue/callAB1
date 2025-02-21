@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"callAB1/pkg/tracy"
-
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
@@ -164,8 +162,8 @@ func main() {
 	simpleUtil.CheckErr(os.MkdirAll(*outputDir, 0755))
 
 	var (
-		resultLines  []string
-		tracyResults = make(map[string]map[int][2]*tracy.Result)
+		resultLines      []string
+		tracyStatusLines []string
 	)
 	for i, id := range seqList {
 		seq := seqMap[id]
@@ -179,35 +177,14 @@ func main() {
 		lines := RecordSeq(seq, result, prefix)
 
 		if result != nil {
-			tracyResults[id] = result
+			tracyStatusLines = append(tracyStatusLines, GetTracyStatusLines(id, result)...)
 		}
 		resultLines = append(resultLines, lines...)
 	}
 
 	// 写入 result
-	resultFile := osUtil.Create(filepath.Join(*outputDir, "Result.txt"))
-	defer simpleUtil.DeferClose(resultFile)
-
-	fmtUtil.FprintStringArray(resultFile, resultTitle, "\t")
-	fmtUtil.FprintStringArray(resultFile, resultLines, "\n")
+	WriteResultTxt(filepath.Join(*outputDir, "Result.txt"), ResultTitle, resultLines)
 
 	// 写入 tracy result
-	tracyResultFile := osUtil.Create(filepath.Join(*outputDir, "TracyResult.txt"))
-	defer simpleUtil.DeferClose(tracyResultFile)
-	fmtUtil.FprintStringArray(tracyResultFile, tracyResultTitle, "\t")
-	for id, result := range tracyResults {
-		for sangerPairIndex, pairResult := range result {
-			for sangerIndex, result := range pairResult {
-				fmtUtil.Fprintf(
-					tracyResultFile,
-					"%s\t%d\t%d\t%s\t%v\t%d\t%d\t%f\n",
-					id, sangerPairIndex, sangerIndex,
-					result.Status, result.Pass,
-					len(result.Variants.Variants),
-					result.Variants.HetCount,
-					result.AlignResult.BoundMatchRatio,
-				)
-			}
-		}
-	}
+	WriteResultTxt(filepath.Join(*outputDir, "TracyStatus.txt"), tracyStatusTitle, tracyStatusLines)
 }
