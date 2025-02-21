@@ -47,7 +47,9 @@ func RunTracyCY0130(id, prefix, bin string, sangerIndex int, result map[int][2]*
 
 	// run tracy
 	result1, err := tracy.RunSingle(bin, prefix+".fa", path, sangerPrefix)
-	simpleUtil.CheckErr(err)
+	if err != nil {
+		slog.Error("RunSingle", "id", id, "sangerIndex", sangerIndex, "err", err)
+	}
 	result[sangerIndex] = [2]*tracy.Result{&result1}
 }
 

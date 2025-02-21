@@ -167,6 +167,8 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 		// output title
 		fmtUtil.FprintStringArray(out, append(result.Variants.Columns, "xrange1", "xrange2"), "\t")
 		fmtUtil.Fprintln(out, result.Variants.String())
+	} else {
+		slog.Error("RunDecompose", "err", err)
 	}
 
 	// 评估
@@ -181,6 +183,7 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 		result.Pass = true
 		result.Status = "PASS"
 	}
+	slog.Info("RunSingle", "Status", result.Status)
 
 	return
 }
@@ -195,8 +198,14 @@ func RunPair(tracy, ref, input1, input2, prefix string) (result1, result2 Result
 		}
 	}()
 
-	result1 = simpleUtil.HandleError(RunSingle(tracy, ref, input1, prefix+"_1"))
-	result2 = simpleUtil.HandleError(RunSingle(tracy, ref, input2, prefix+"_2"))
+	result1, err = RunSingle(tracy, ref, input1, prefix+"_1")
+	if err != nil {
+		slog.Error("RunSingle 1", "err", err)
+	}
+	result2, err = RunSingle(tracy, ref, input2, prefix+"_2")
+	if err != nil {
+		slog.Error("RunSingle 2", "err", err)
+	}
 
 	var out = osUtil.Create(prefix + ".decompose.variants.txt")
 	defer simpleUtil.DeferClose(out)

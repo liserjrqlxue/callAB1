@@ -192,7 +192,6 @@ func main() {
 			result = RunTracyBatchCy0130(rename[id], prefix, *bin)
 		} else {
 			result = RunTracyBatch(id, prefix, *bin)
-
 		}
 
 		tracyStatusLines = append(tracyStatusLines, GetTracyStatusLines(id, result)...)
