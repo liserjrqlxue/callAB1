@@ -30,6 +30,8 @@ type Variant struct {
 	Signalpos int    `json:"signalpos"`
 
 	Xrange [2]int `json:"xrange"`
+
+	SV bool `json:"sv"`
 }
 
 func (v *Variant) String() string {
@@ -75,6 +77,10 @@ func (v *Variants) CalVariants() {
 
 		if varint.Genotype == "het." {
 			v.HetCount++
+		}
+
+		if varint.Type == "Complex" || len(varint.Alt) >= SVThreshold || len(varint.Ref) >= SVThreshold {
+			varint.SV = true
 		}
 	}
 }
@@ -137,6 +143,7 @@ type Result struct {
 	AlignResult *AlignResult `json:"alignResult"`
 
 	Status string `json:"status"`
+	Pass   bool   `json:"pass"`
 }
 
 type Trace struct {

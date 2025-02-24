@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"math"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
@@ -68,6 +66,13 @@ func (s *Seq) CreateSub(id string, start, end int) *Seq {
 	}
 	s.SubSeq = append(s.SubSeq, subSeq)
 	return subSeq
+}
+
+func (s *Seq) CreateFasta(prefix string) {
+	fa := osUtil.Create(prefix + ".fa")
+	defer simpleUtil.DeferClose(fa)
+
+	fmtUtil.Fprintf(fa, ">%s\n%s\n", s.ID, s.Seq)
 }
 
 func main() {
@@ -157,112 +162,37 @@ func main() {
 
 	simpleUtil.CheckErr(os.MkdirAll(*outputDir, 0755))
 
+	var (
+		resultLines      [][]interface{}
+		tracyStatusLines [][]interface{}
+	)
 	for i, id := range seqList {
 		seq := seqMap[id]
-		fmt.Printf("%d\t%s\t\t%3d-%-3d\n", i+1, seq.ID, seq.Start, seq.End)
+		slog.Info("seq", "index", i+1, "id", seq.ID, "start", seq.Start, "end", seq.End)
 
 		// 创建 Fasta
 		prefix := filepath.Join(*outputDir, id)
-		fa := osUtil.Create(prefix + ".fa")
-		fmtUtil.Fprintf(fa, ">%s\n%s\n", id, seq.Seq)
-		simpleUtil.CheckErr(fa.Close())
 
-		resultF := osUtil.Create(prefix + ".result.txt")
-
-		// 遍历分析sanger文件 -> result
+		seq.CreateFasta(prefix)
 		result := RunTracyBatch(id, prefix, *bin)
 
-		for j, pair := range seq.SubSeq {
-			segStart := pair.RefStart + seq.Start
-			segEnd := pair.RefEnd + seq.Start
-
-			slog.Info("pair", "id", pair.ID, "segStart", segStart, "segEnd", segEnd, "start", pair.Start, "end", pair.End)
-			for k, primer := range pair.SubSeq {
-				start := primer.Start - pair.Start + segStart
-				end := primer.End - pair.Start + segStart
-				length := end - start
-
-				variantSet := make(map[string]bool)
-				n := 0
-				// 遍历结果
-				for l := range result {
-					keep := false
-
-					boundMatchRatio1 := result[l][0].AlignResult.BoundMatchRatio
-					hetCount1 := result[l][0].Variants.HetCount
-					boundMatchRatio2 := result[l][1].AlignResult.BoundMatchRatio
-					hetCount2 := result[l][1].Variants.HetCount
-					for _, v := range result[l][0].Variants.Variants {
-						if v.Pos > start && v.Pos <= end {
-							fmtUtil.Fprintf(
-								resultF,
-								"%d.%d.%d\t%s\t%3d-%3d\t%d.1\t%f\t%d\t%s\n",
-								i+1, j+1, k+1,
-								primer.ID,
-								start, end,
-								l,
-								boundMatchRatio1, hetCount1,
-								v,
-							)
-							if boundMatchRatio1 > 0.9 && hetCount1 < 50 {
-								keep = true
-								key := fmt.Sprintf("%d-%d-%s-%s", l, v.Pos, v.Ref, v.Alt)
-								variantSet[key] = true
-							}
-						}
-					}
-					for _, v := range result[l][1].Variants.Variants {
-						if v.Pos > start && v.Pos <= end {
-							fmtUtil.Fprintf(
-								resultF,
-								"%d.%d.%d\t%s\t%3d-%3d\t%d.2\t%f\t%d\t%s\n",
-								i+1, j+1, k+1,
-								primer.ID,
-								start, end,
-								l,
-								boundMatchRatio2, hetCount2,
-								v,
-							)
-							if boundMatchRatio2 > 0.9 && hetCount2 < 50 {
-								keep = true
-								key := fmt.Sprintf("%d-%d-%s-%s", l, v.Pos, v.Ref, v.Alt)
-								variantSet[key] = true
-							}
-						}
-					}
-					if keep {
-						n++
-					}
-				}
-				// 按照位置统计
-				variantRatio := make(map[string]float64)
-				for key := range variantSet {
-					pos := strings.Split(key, "-")[1]
-					variantRatio[pos]++
-				}
-				// 计算收率
-				yeild := 1.0
-				for pos := range variantRatio {
-					variantRatio[pos] /= float64(n)
-					yeild *= 1.0 - variantRatio[pos]
-				}
-				// 计算几何平均
-				geoMeanAcc := math.Pow(yeild, 1.0/float64(length))
-				fmt.Printf(
-					"%d.%d.%d\t%s\t%3d-%3d\t%d-%d\t%d\t%d\t%d\t%f\t%f\n",
-					i+1, j+1, k+1,
-					primer.ID,
-					start, end,
-					primer.Start, primer.End,
-					n,
-					len(variantSet),
-					len(variantRatio),
-					yeild, geoMeanAcc,
-				)
-			}
-		}
-
-		simpleUtil.CheckErr(resultF.Close())
-
+		tracyStatusLines = append(tracyStatusLines, GetTracyStatusLines(id, result)...)
+		resultLines = append(resultLines, RecordSeq(seq, result, prefix)...)
 	}
+
+	// 写入 result
+	resultFormat := "%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\n"
+	WriteSlice(filepath.Join(*outputDir, "Result.txt"), resultFormat, ResultTitle, resultLines)
+
+	// 写入 tracy result
+	tracyFormat := "%s\t%d\t%d\t%s\t%v\t%d\t%d\t%f\n"
+	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, tracyStatusLines)
+
+	// 写入 excel
+	simpleUtil.HandleError(inputXlsx.NewSheet("Sanger结果"))
+	inputXlsx.SetSheetRow("Sanger结果", "A1", &ResultTitle)
+	for i, line := range resultLines {
+		inputXlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", i+2), &line)
+	}
+	inputXlsx.SaveAs(filepath.Join(*outputDir, "Sanger结果.xlsx"))
 }
