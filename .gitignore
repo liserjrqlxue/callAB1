@@ -1,4 +1,5 @@
 test/
+*.xlsx
 
 *.exe
 cmd/calPCA/calPCA
