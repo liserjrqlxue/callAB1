@@ -186,8 +186,8 @@ func main() {
 	var (
 		cy0130           bool
 		rename           = make(map[string]string)
-		resultLines      = make(map[string][][]interface{})
-		tracyStatusLines = make(map[string][][]interface{})
+		resultLines      = make(map[string][][]any)
+		tracyStatusLines = make(map[string][][]any)
 	)
 	if *renameTxt != "" {
 		cy0130 = true
@@ -238,8 +238,8 @@ func main() {
 
 type tracyResult struct {
 	id          string
-	statusLines [][]interface{}
-	resultLines [][]interface{}
+	statusLines [][]any
+	resultLines [][]any
 }
 
 func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputDir string, bin string, seqMap map[string]*Seq) tracyResult {
