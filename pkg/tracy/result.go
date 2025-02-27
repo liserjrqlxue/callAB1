@@ -217,7 +217,7 @@ func (ar *AlignResult) CalAlign() {
 		}
 		status = append(status, currentStatus)
 	}
-	slog.Info("CalAlign", "match", match, "refLength", refLength, "altLength", altLength, "altRatio", float64(match)/float64(altLength), "status", status)
+	slog.Debug("CalAlign", "match", match, "refLength", refLength, "altLength", altLength, "altRatio", float64(match)/float64(altLength), "status", status)
 
 	var altPos = 0
 	var refPos = 0
@@ -250,7 +250,7 @@ func (ar *AlignResult) CalAlign() {
 	ar.BoundMatchRatio = float64(boundMatch) / float64(len(boundStatus))
 	ar.BoundStatus = boundStatus
 
-	slog.Info("Bound", "refBound", refBound, "altBound", altBound, "newBound", newBound, "boundMatch", boundMatch, "boundMatchRatio", ar.BoundMatchRatio, "boundStatus", ar.BoundStatus)
+	slog.Debug("Bound", "refBound", refBound, "altBound", altBound, "newBound", newBound, "boundMatch", boundMatch, "boundMatchRatio", ar.BoundMatchRatio, "boundStatus", ar.BoundStatus)
 }
 
 func (ar *AlignResult) Summary(summary io.Writer) {
