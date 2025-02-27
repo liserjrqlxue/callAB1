@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
@@ -15,10 +16,10 @@ import (
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 )
 
-func RunTracy(id, tag, prefix, bin string, sangerIndex int, result map[int][2]*tracy.Result) {
-	sangerPrefix := fmt.Sprintf("%s_%d", prefix, sangerIndex)
-	path1 := filepath.Join(*sangerDir, fmt.Sprintf("BGA-%s-TY1-%d-T7.ab1", tag, sangerIndex))
-	path2 := filepath.Join(*sangerDir, fmt.Sprintf("BGA-%s-TY1-%d-T7-Term.ab1", tag, sangerIndex))
+func RunTracy(id, tag, prefix, bin, sangerIndex string, result map[string][2]*tracy.Result) {
+	sangerPrefix := fmt.Sprintf("%s_%s", prefix, sangerIndex)
+	path1 := filepath.Join(*sangerDir, fmt.Sprintf("BGA-%s-TY1-%s-T7.ab1", tag, sangerIndex))
+	path2 := filepath.Join(*sangerDir, fmt.Sprintf("BGA-%s-TY1-%s-T7-Term.ab1", tag, sangerIndex))
 
 	ok1 := osUtil.FileExists(path1)
 	ok2 := osUtil.FileExists(path2)
@@ -35,9 +36,9 @@ func RunTracy(id, tag, prefix, bin string, sangerIndex int, result map[int][2]*t
 	}
 }
 
-func RunTracyCY0130(id, prefix, bin string, sangerIndex int, result map[int][2]*tracy.Result) {
-	sangerPrefix := fmt.Sprintf("%s_%d", prefix, sangerIndex)
-	path := filepath.Join(*sangerDir, fmt.Sprintf("%s-%d-T7.ab1", id, sangerIndex))
+func RunTracyCY0130(id, prefix, bin, sangerIndex string, result map[string][2]*tracy.Result) {
+	sangerPrefix := fmt.Sprintf("%s_%s", prefix, sangerIndex)
+	path := filepath.Join(*sangerDir, fmt.Sprintf("%s-%s-T7.ab1", id, sangerIndex))
 
 	ok := osUtil.FileExists(path)
 	if !ok {
@@ -54,30 +55,30 @@ func RunTracyCY0130(id, prefix, bin string, sangerIndex int, result map[int][2]*
 }
 
 // 遍历分析sanger文件 -> result
-func RunTracyBatch(id, prefix, bin string) map[int][2]*tracy.Result {
-	result := make(map[int][2]*tracy.Result)
+func RunTracyBatch(id, prefix, bin string) map[string][2]*tracy.Result {
+	result := make(map[string][2]*tracy.Result)
 	tag := []byte(strings.Split(id, "_")[1][:4])
 	tag[2] = 'B'
 	for sangerIndex := 1; sangerIndex <= CloneCountLimit; sangerIndex++ {
-		RunTracy(id, string(tag), prefix, bin, sangerIndex, result)
+		RunTracy(id, string(tag), prefix, bin, strconv.Itoa(sangerIndex), result)
 	}
 	return result
 }
 
 // 遍历分析sanger文件 -> result
-func RunTracyBatchCy0130(id, prefix, bin string) map[int][2]*tracy.Result {
-	result := make(map[int][2]*tracy.Result)
+func RunTracyBatchCy0130(id, prefix, bin string) map[string][2]*tracy.Result {
+	result := make(map[string][2]*tracy.Result)
 	for sangerIndex := 1; sangerIndex <= CloneCountLimit; sangerIndex++ {
-		RunTracyCY0130(id, prefix, bin, sangerIndex, result)
+		RunTracyCY0130(id, prefix, bin, strconv.Itoa(sangerIndex), result)
 	}
 	return result
 }
 
-func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerPairIndex, sangerIndex, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool, pass bool) {
+func RecordVariant(v *tracy.Variant, out *os.File, index, id, sangerPairIndex string, sangerIndex, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool, pass bool) {
 	if v.Pos > start && v.Pos <= end {
 		fmtUtil.Fprintf(
 			out,
-			"%s\t%s\t%3d-%3d\t%d.%d\t%f\t%d\t%v\t%s\n",
+			"%s\t%s\t%3d-%3d\t%s.%d\t%f\t%d\t%v\t%s\n",
 			index,
 			id,
 			start, end,
@@ -87,13 +88,13 @@ func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerPairI
 			v,
 		)
 		if pass {
-			key := fmt.Sprintf("%d-%d-%s-%s-%s", sangerPairIndex, v.Pos, v.Ref, v.Alt, v.Type)
+			key := fmt.Sprintf("%s-%d-%s-%s-%s", sangerPairIndex, v.Pos, v.Ref, v.Alt, v.Type)
 			variantSet[key] = true
 		}
 	}
 }
 
-func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, index string, sangerIndex, offset int, variantSet map[string]bool) (keep bool) {
+func Record1Result(primer *Seq, result map[string][2]*tracy.Result, out *os.File, index, sangerIndex string, offset int, variantSet map[string]bool) (keep bool) {
 	var (
 		id    = primer.ID
 		start = primer.Start + offset
@@ -135,7 +136,7 @@ func Record1Result(primer *Seq, result map[int][2]*tracy.Result, out *os.File, i
 	return
 }
 
-func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, index string, offset int) (resultLine []interface{}) {
+func RecordPrimer(primer *Seq, result map[string][2]*tracy.Result, out *os.File, index string, offset int) (resultLine []interface{}) {
 	var (
 		length            = primer.End - primer.Start // 长度
 		n                 = 0                         // sanger 个数
@@ -207,7 +208,7 @@ func RecordPrimer(primer *Seq, result map[int][2]*tracy.Result, out *os.File, in
 	return
 }
 
-func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIndex, segOffset int) (resultLines [][]interface{}) {
+func RecordPair(pair *Seq, result map[string][2]*tracy.Result, out *os.File, pairIndex, segOffset int) (resultLines [][]interface{}) {
 	var (
 		segStart = pair.RefStart + segOffset
 		segEnd   = pair.RefEnd + segOffset
@@ -223,7 +224,7 @@ func RecordPair(pair *Seq, result map[int][2]*tracy.Result, out *os.File, pairIn
 	return
 }
 
-func RecordSeq(seq *Seq, result map[int][2]*tracy.Result, prefix string) (resultLines [][]interface{}) {
+func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLines [][]interface{}) {
 	out := osUtil.Create(prefix + ".result.txt")
 	defer simpleUtil.DeferClose(out)
 
@@ -260,7 +261,7 @@ func WriteSlice(path, format string, title, list []string, data map[string][][]i
 	}
 }
 
-func GetTracyStatusLines(id string, result map[int][2]*tracy.Result) (data [][]interface{}) {
+func GetTracyStatusLines(id string, result map[string][2]*tracy.Result) (data [][]interface{}) {
 	for sangerPairIndex, pairResult := range result {
 		for sangerIndex, result := range pairResult {
 			slog.Debug("GetTracyStatusLines", "id", id, "sangerPairIndex", sangerPairIndex, "sangerIndex", sangerIndex, "result", result)
