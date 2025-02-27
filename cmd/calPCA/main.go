@@ -249,7 +249,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 	prefix := filepath.Join(outputDir, id)
 	seq.CreateFasta(prefix)
 
-	var result map[int][2]*tracy.Result
+	var result map[string][2]*tracy.Result
 	if cy0130 {
 		result = RunTracyBatchCy0130(rename[id], prefix, bin)
 	} else {
