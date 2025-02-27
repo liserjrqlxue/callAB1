@@ -188,7 +188,7 @@ func RecordPrimer(primer *Seq, result map[string][2]*tracy.Result, out *os.File,
 	if n > 0 {
 		vErrPercent := float64(len(vSet)*100) / float64(ln)
 		vAccPercent := 100.0 - vErrPercent
-		resultLine = []interface{}{
+		resultLine = []any{
 			index,
 			primer.ID,
 			primer.Start + offset, primer.End + offset,
@@ -209,6 +209,26 @@ func RecordPrimer(primer *Seq, result map[string][2]*tracy.Result, out *os.File,
 			vAccPercent,
 			yeildPercent,
 			geoMeanAccPercent,
+		}
+	} else {
+		resultLine = []any{
+			index,
+			primer.ID,
+			primer.Start + offset, primer.End + offset,
+			primer.Start, primer.End,
+			length,
+			n,
+			len(vPosRatio),
+			len(vSet),
+			vTypeCounts["SNV"],
+			vTypeCounts["Insertion"],
+			vTypeCounts["Deletion"],
+			vTypeCounts["SV"],
+			vTypePercent["SNV"],
+			vTypePercent["Insertion"],
+			vTypePercent["Deletion"],
+			vTypePercent["SV"],
+			0.0, 0.0, 0.0, 0.0,
 		}
 	}
 	return
