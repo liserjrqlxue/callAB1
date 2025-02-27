@@ -58,7 +58,7 @@ func RunTracyBatch(id, prefix, bin string) map[int][2]*tracy.Result {
 	result := make(map[int][2]*tracy.Result)
 	tag := []byte(strings.Split(id, "_")[1][:4])
 	tag[2] = 'B'
-	for sangerIndex := 1; sangerIndex < 33; sangerIndex++ {
+	for sangerIndex := 1; sangerIndex <= CloneCountLimit; sangerIndex++ {
 		RunTracy(id, string(tag), prefix, bin, sangerIndex, result)
 	}
 	return result
@@ -67,11 +67,12 @@ func RunTracyBatch(id, prefix, bin string) map[int][2]*tracy.Result {
 // 遍历分析sanger文件 -> result
 func RunTracyBatchCy0130(id, prefix, bin string) map[int][2]*tracy.Result {
 	result := make(map[int][2]*tracy.Result)
-	for sangerIndex := 1; sangerIndex < 33; sangerIndex++ {
+	for sangerIndex := 1; sangerIndex <= CloneCountLimit; sangerIndex++ {
 		RunTracyCY0130(id, prefix, bin, sangerIndex, result)
 	}
 	return result
 }
+
 func RecordVariant(v *tracy.Variant, out *os.File, index, id string, sangerPairIndex, sangerIndex, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool, pass bool) {
 	if v.Pos > start && v.Pos <= end {
 		fmtUtil.Fprintf(
