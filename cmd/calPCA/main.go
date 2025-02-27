@@ -245,7 +245,7 @@ func main() {
 		row++
 	}
 
-	inputXlsx.SaveAs(filepath.Join(*outputDir, "Sanger结果.xlsx"))
+	inputXlsx.SaveAs(*outputDir + ".Sanger结果.xlsx")
 
 }
 

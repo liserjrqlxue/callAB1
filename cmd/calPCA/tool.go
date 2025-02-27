@@ -278,11 +278,21 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		vPosRatio    = make(map[string]float64)
 		vTypeCounts  = make(map[string]int)
 		vTypePercent = make(map[string]float64)
+		selectClones = make(map[string]bool)
 	)
 
-	for sangerPairIndex := range result {
+	for sangerPairIndex, pairResult := range result {
 		if Record1Result(seq, result, out, seq.ID, sangerPairIndex, 0, vSet) {
 			n++
+			variantCount := 0
+			for _, r := range pairResult {
+				if r != nil && r.Variants != nil {
+					variantCount += len(r.Variants.Variants)
+				}
+			}
+			if variantCount == 0 {
+				selectClones[sangerPairIndex] = true
+			}
 		} else {
 			failN++
 		}
@@ -317,10 +327,10 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		resultLine = []any{
 			seq.ID,
 			seq.Start, seq.End,
-			seq.Start, seq.End,
 			length,
 			n,
 			failN,
+			len(selectClones),
 			len(vPosRatio),
 			len(vSet),
 			vTypeCounts["SNV"],
@@ -343,6 +353,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 			length,
 			n,
 			failN,
+			len(selectClones),
 			len(vPosRatio),
 			len(vSet),
 			vTypeCounts["SNV"],
@@ -389,7 +400,7 @@ func WriteSlice(path, format string, title, list []string, data map[string][][]i
 	}
 }
 
-func GetTracyStatusLines(id string, result map[string][2]*tracy.Result) (data [][]interface{}) {
+func GetTracyStatusLines(id string, result map[string][2]*tracy.Result) (data [][]any) {
 	for sangerPairIndex, pairResult := range result {
 		for sangerIndex, result := range pairResult {
 			slog.Debug("GetTracyStatusLines", "id", id, "sangerPairIndex", sangerPairIndex, "sangerIndex", sangerIndex, "result", result)
@@ -403,7 +414,7 @@ func GetTracyStatusLines(id string, result map[string][2]*tracy.Result) (data []
 				variantCount = len(result.Variants.Variants)
 				hetCount = result.Variants.HetCount
 			}
-			row := []interface{}{
+			row := []any{
 				id, sangerPairIndex, sangerIndex,
 				result.Status, result.Pass,
 				variantCount,
