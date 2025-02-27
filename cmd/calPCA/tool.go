@@ -36,9 +36,9 @@ func RunTracy(id, tag, prefix, bin, sangerIndex string, result map[string][2]*tr
 	}
 }
 
-func RunTracyCY0130(id, prefix, bin, sangerIndex string, result map[string][2]*tracy.Result) {
+func RunTracyCY0130(id, prefix, bin, path string, result map[string][2]*tracy.Result) {
+	sangerIndex := strings.TrimSuffix(filepath.Base(path), ".ab1")
 	sangerPrefix := fmt.Sprintf("%s_%s", prefix, sangerIndex)
-	path := filepath.Join(*sangerDir, fmt.Sprintf("%s-%s-T7.ab1", id, sangerIndex))
 
 	ok := osUtil.FileExists(path)
 	if !ok {
@@ -68,9 +68,15 @@ func RunTracyBatch(id, prefix, bin string) map[string][2]*tracy.Result {
 // 遍历分析sanger文件 -> result
 func RunTracyBatchCy0130(id, prefix, bin string) map[string][2]*tracy.Result {
 	result := make(map[string][2]*tracy.Result)
-	for sangerIndex := 1; sangerIndex <= CloneCountLimit; sangerIndex++ {
-		RunTracyCY0130(id, prefix, bin, strconv.Itoa(sangerIndex), result)
+
+	files := simpleUtil.HandleError(
+		filepath.Glob(fmt.Sprintf("%s/%s*.ab1", *sangerDir, id)),
+	)
+
+	for _, path := range files {
+		RunTracyCY0130(id, prefix, bin, path, result)
 	}
+
 	return result
 }
 
