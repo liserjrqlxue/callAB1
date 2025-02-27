@@ -7,5 +7,5 @@ var (
 	BoundMatchRaitoLimit = 0.9
 	HetCountLimit        = 50
 
-	SVThreshold = 10
+	SVThreshold = 3
 )

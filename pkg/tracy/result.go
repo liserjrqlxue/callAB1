@@ -79,7 +79,7 @@ func (v *Variants) CalVariants() {
 			v.HetCount++
 		}
 
-		if varint.Type == "Complex" || len(varint.Alt) >= SVThreshold || len(varint.Ref) >= SVThreshold {
+		if varint.Type == "Complex" || (varint.Type == "SNV" && len(varint.Alt) >= SVThreshold) || len(varint.Alt)-len(varint.Ref) >= SVThreshold || len(varint.Ref)-len(varint.Alt) >= SVThreshold {
 			varint.SV = true
 		}
 	}
