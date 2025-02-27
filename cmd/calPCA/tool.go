@@ -81,6 +81,7 @@ func RunTracyBatchCy0130(id, prefix, bin string) map[string][2]*tracy.Result {
 }
 
 func RecordVariant(v *tracy.Variant, out *os.File, index, id, sangerPairIndex string, sangerIndex, start, end, hetCount int, boundMatchRatio float64, variantSet map[string]bool, pass bool) {
+	changeID := strings.ReplaceAll(sangerPairIndex, "-", "_")
 	if v.Pos > start && v.Pos <= end {
 		fmtUtil.Fprintf(
 			out,
@@ -94,7 +95,7 @@ func RecordVariant(v *tracy.Variant, out *os.File, index, id, sangerPairIndex st
 			v,
 		)
 		if pass {
-			key := fmt.Sprintf("%s-%d-%s-%s-%s", sangerPairIndex, v.Pos, v.Ref, v.Alt, v.Type)
+			key := fmt.Sprintf("%s-%d-%s-%s-%s", changeID, v.Pos, v.Ref, v.Alt, v.Type)
 			variantSet[key] = true
 		}
 	}
