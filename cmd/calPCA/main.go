@@ -45,6 +45,11 @@ var (
 		"",
 		"rename file for CY0130",
 	)
+	cloneCount = flag.Int(
+		"c",
+		0,
+		"clone count",
+	)
 )
 
 type Seq struct {
@@ -88,6 +93,10 @@ func main() {
 	if *input == "" || *outputDir == "" || *sangerDir == "" {
 		flag.PrintDefaults()
 		log.Fatal("input is required")
+	}
+
+	if *cloneCount > 0 {
+		CloneCountLimit = *cloneCount
 	}
 
 	var inputXlsx = simpleUtil.HandleError(excelize.OpenFile(*input))

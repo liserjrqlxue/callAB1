@@ -36,4 +36,6 @@ var (
 		"杂合变异个数",
 		"比对率",
 	}
+
+	CloneCountLimit = 32
 )
