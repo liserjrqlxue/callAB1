@@ -60,17 +60,20 @@ func Decompose(tracy, ref, input, prefix string, left, right int, stdout, stderr
 	return cmd.Run()
 }
 
-func RunBasecall(tracy, input, prefix string, left, right int, stdout, stderr *os.File) (result Result, err error) {
-	err = Basecall(tracy, input, prefix, left, right, stdout, stderr)
-	if err != nil {
-		slog.Error("Basecall", "err", err)
-		return
+func RunBasecall(tracy, input, prefix string, left, right int, stdout, stderr *os.File, override bool) (result Result, err error) {
+	jsonFile := prefix + ".basecall.json"
+	if override || !osUtil.FileExists(jsonFile) {
+		err = Basecall(tracy, input, prefix, left, right, stdout, stderr)
+		if err != nil {
+			slog.Error("Basecall", "err", err)
+			return
+		}
 	}
 
 	var resultJson []byte
-	resultJson, err = os.ReadFile(prefix + ".basecall.json")
+	resultJson, err = os.ReadFile(jsonFile)
 	if err != nil {
-		slog.Error("Load basecall.json", "json", prefix+".basecall.json", "err", err)
+		slog.Error("Load basecall.json", "json", jsonFile, "err", err)
 		return
 	}
 
@@ -83,11 +86,14 @@ func RunBasecall(tracy, input, prefix string, left, right int, stdout, stderr *o
 	return
 }
 
-func RunAlign(tracy, ref, input, prefix string, left, right int, stdout, stderr *os.File) (result AlignResult, err error) {
-	err = Align(tracy, ref, input, prefix, left, right, stdout, stderr)
-	if err != nil {
-		slog.Error("Align", "err", err)
-		return
+func RunAlign(tracy, ref, input, prefix string, left, right int, stdout, stderr *os.File, override bool) (result AlignResult, err error) {
+	jsonFile := prefix + ".align.json"
+	if override || !osUtil.FileExists(jsonFile) {
+		err = Align(tracy, ref, input, prefix, left, right, stdout, stderr)
+		if err != nil {
+			slog.Error("Align", "err", err)
+			return
+		}
 	}
 
 	var resultJson []byte
@@ -106,11 +112,14 @@ func RunAlign(tracy, ref, input, prefix string, left, right int, stdout, stderr 
 	return
 }
 
-func RunDecompose(tracy, ref, input, prefix string, left, right int, stdout, stderr *os.File) (result Result, err error) {
-	err = Decompose(tracy, ref, input, prefix, left, right, stdout, stderr)
-	if err != nil {
-		slog.Error("Decompose", "err", err)
-		return Result{Status: "DecomposeFail", Pass: false}, err
+func RunDecompose(tracy, ref, input, prefix string, left, right int, stdout, stderr *os.File, override bool) (result Result, err error) {
+	jsonFile := prefix + ".decompose.json"
+	if override || !osUtil.FileExists(jsonFile) {
+		err = Decompose(tracy, ref, input, prefix, left, right, stdout, stderr)
+		if err != nil {
+			slog.Error("Decompose", "err", err)
+			return Result{Status: "DecomposeFail", Pass: false}, err
+		}
 	}
 
 	var resultJson []byte
@@ -129,7 +138,7 @@ func RunDecompose(tracy, ref, input, prefix string, left, right int, stdout, std
 	return
 }
 
-func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
+func RunSingle(tracy, ref, input, prefix string, override bool) (result Result, err error) {
 	// recover panic
 	defer func() {
 		if e := recover(); e != nil {
@@ -146,19 +155,19 @@ func RunSingle(tracy, ref, input, prefix string) (result Result, err error) {
 	var stderr = osUtil.Create(prefix + ".stderr.txt")
 	defer simpleUtil.DeferClose(stderr)
 
-	result = simpleUtil.HandleError(RunBasecall(tracy, input, prefix, left, right, stdout, stderr))
+	result = simpleUtil.HandleError(RunBasecall(tracy, input, prefix, left, right, stdout, stderr, override))
 
 	// trim
 	// left = Trim
 	// right = max(Trim, len(result.BasecallPos)-MaxLength)
 
-	alignResult := simpleUtil.HandleError(RunAlign(tracy, ref, input, prefix, left, right, stdout, stderr))
+	alignResult := simpleUtil.HandleError(RunAlign(tracy, ref, input, prefix, left, right, stdout, stderr, override))
 	alignResult.CalAlign()
 	var summary = osUtil.Create(prefix + ".align.summary.txt")
 	defer simpleUtil.DeferClose(summary)
 	alignResult.Summary(summary)
 
-	result, err = RunDecompose(tracy, ref, input, prefix, left, right, stdout, stderr)
+	result, err = RunDecompose(tracy, ref, input, prefix, left, right, stdout, stderr, override)
 	result.AlignResult = &alignResult
 	if err == nil {
 		result.Variants.CalVariants()
@@ -198,11 +207,11 @@ func RunPair(tracy, ref, input1, input2, prefix string) (result1, result2 Result
 		}
 	}()
 
-	result1, err = RunSingle(tracy, ref, input1, prefix+"_1")
+	result1, err = RunSingle(tracy, ref, input1, prefix+"_1", false)
 	if err != nil {
 		slog.Error("RunSingle 1", "err", err)
 	}
-	result2, err = RunSingle(tracy, ref, input2, prefix+"_2")
+	result2, err = RunSingle(tracy, ref, input2, prefix+"_2", false)
 	if err != nil {
 		slog.Error("RunSingle 2", "err", err)
 	}
