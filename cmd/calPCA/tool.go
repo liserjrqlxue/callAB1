@@ -47,7 +47,7 @@ func RunTracyCY0130(id, prefix, bin, path string, result map[string][2]*tracy.Re
 	}
 
 	// run tracy
-	result1, err := tracy.RunSingle(bin, prefix+".fa", path, sangerPrefix)
+	result1, err := tracy.RunSingle(bin, prefix+".fa", path, sangerPrefix, false)
 	if err != nil {
 		slog.Error("RunSingle", "id", id, "sangerIndex", sangerIndex, "err", err)
 	}
@@ -250,7 +250,7 @@ func RecordPair(pair *Seq, result map[string][2]*tracy.Result, out *os.File, pai
 	return
 }
 
-func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLines [][]interface{}) {
+func RecordSeqPrimer(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLines [][]any) {
 	out := osUtil.Create(prefix + ".result.txt")
 	defer simpleUtil.DeferClose(out)
 
@@ -258,6 +258,107 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		lines := RecordPair(pair, result, out, i+1, seq.Start)
 		resultLines = append(resultLines, lines...)
 	}
+	return
+}
+
+func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLine []any) {
+	out := osUtil.Create(prefix + ".seq.result.txt")
+	defer simpleUtil.DeferClose(out)
+
+	var (
+		length            = seq.End - seq.Start // 长度
+		n                 = 0                   // sanger 个数
+		failN             = 0                   // 失败个数
+		ln                = 0                   // length * n
+		yeildPercent      = 1.0                 // 收率
+		geoMeanAccPercent = 1.0                 // 平均准确率
+
+		vSet         = make(map[string]bool)
+		vPosRatio    = make(map[string]float64)
+		vTypeCounts  = make(map[string]int)
+		vTypePercent = make(map[string]float64)
+	)
+
+	for sangerPairIndex := range result {
+		if Record1Result(seq, result, out, seq.ID, sangerPairIndex, 0, vSet) {
+			n++
+		} else {
+			failN++
+		}
+	}
+	ln = length * n
+
+	// 按照位置统计
+	for key := range vSet {
+		spt := strings.Split(key, "-")
+		vPosRatio[spt[1]]++
+		vTypeCounts[spt[4]]++
+	}
+
+	// 计算收率
+	for pos := range vPosRatio {
+		vPosRatio[pos] /= float64(n)
+		yeildPercent *= 1.0 - vPosRatio[pos]
+	}
+
+	// 计算几何平均
+	geoMeanAccPercent = math.Pow(yeildPercent, 1.0/float64(length)) * 100.0
+	yeildPercent *= 100
+
+	// 计算类型比率
+	for tp := range vTypeCounts {
+		vTypePercent[tp] = float64(vTypeCounts[tp]*100) / float64(ln)
+	}
+
+	if n > 0 {
+		vErrPercent := float64(len(vSet)*100) / float64(ln)
+		vAccPercent := 100.0 - vErrPercent
+		resultLine = []any{
+			seq.ID,
+			seq.Start, seq.End,
+			seq.Start, seq.End,
+			length,
+			n,
+			failN,
+			len(vPosRatio),
+			len(vSet),
+			vTypeCounts["SNV"],
+			vTypeCounts["Insertion"],
+			vTypeCounts["Deletion"],
+			vTypeCounts["SV"],
+			vTypePercent["SNV"],
+			vTypePercent["Insertion"],
+			vTypePercent["Deletion"],
+			vTypePercent["SV"],
+			vErrPercent,
+			vAccPercent,
+			yeildPercent,
+			geoMeanAccPercent,
+		}
+	} else {
+		resultLine = []any{
+			seq.ID,
+			seq.Start, seq.End,
+			length,
+			n,
+			failN,
+			len(vPosRatio),
+			len(vSet),
+			vTypeCounts["SNV"],
+			vTypeCounts["Insertion"],
+			vTypeCounts["Deletion"],
+			vTypeCounts["SV"],
+			vTypePercent["SNV"],
+			vTypePercent["Insertion"],
+			vTypePercent["Deletion"],
+			vTypePercent["SV"],
+			0.0, 0.0, 0.0, 0.0,
+		}
+	}
+	// 写入 result
+	resultFormat := "%s\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\n"
+	fmtUtil.Fprintf(out, resultFormat, resultLine...)
+
 	return
 }
 

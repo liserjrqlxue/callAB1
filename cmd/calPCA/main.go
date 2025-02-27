@@ -188,6 +188,7 @@ func main() {
 		rename           = make(map[string]string)
 		resultLines      = make(map[string][][]any)
 		tracyStatusLines = make(map[string][][]any)
+		seqLines         = make(map[string][]any)
 	)
 	if *renameTxt != "" {
 		cy0130 = true
@@ -213,6 +214,7 @@ func main() {
 	for result := range results {
 		resultLines[result.id] = result.resultLines
 		tracyStatusLines[result.id] = result.statusLines
+		seqLines[result.id] = result.seqLines
 	}
 
 	// 写入 result
@@ -220,7 +222,7 @@ func main() {
 	WriteSlice(filepath.Join(*outputDir, "Result.txt"), resultFormat, ResultTitle, seqList, resultLines)
 
 	// 写入 tracy result
-	tracyFormat := "%s\t%d\t%d\t%s\t%v\t%d\t%d\t%f\n"
+	tracyFormat := "%s\t%s\t%d\t%s\t%v\t%d\t%d\t%f\n"
 	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, seqList, tracyStatusLines)
 
 	// 写入 excel
@@ -233,13 +235,25 @@ func main() {
 			row++
 		}
 	}
+
+	simpleUtil.HandleError(inputXlsx.NewSheet("片段结果"))
+	inputXlsx.SetSheetRow("片段结果", "A1", &SeqTitle)
+	row = 2
+	for _, id := range seqList {
+		line := seqLines[id]
+		inputXlsx.SetSheetRow("片段结果", fmt.Sprintf("A%d", row), &line)
+		row++
+	}
+
 	inputXlsx.SaveAs(filepath.Join(*outputDir, "Sanger结果.xlsx"))
+
 }
 
 type tracyResult struct {
 	id          string
 	statusLines [][]any
 	resultLines [][]any
+	seqLines    []any
 }
 
 func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputDir string, bin string, seqMap map[string]*Seq) tracyResult {
@@ -259,6 +273,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 	return tracyResult{
 		id:          id,
 		statusLines: GetTracyStatusLines(id, result),
-		resultLines: RecordSeq(seq, result, prefix),
+		resultLines: RecordSeqPrimer(seq, result, prefix),
+		seqLines:    RecordSeq(seq, result, prefix),
 	}
 }
