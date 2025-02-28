@@ -324,25 +324,32 @@ type tracyResult struct {
 	seqLines    []any
 }
 type Variant struct {
-	GeneID    string
-	CloneID   string
-	SangerID  string
-	VariantID string
-	Pos       int
-	Variant   *tracy.Variant
+	GeneID       string
+	CloneID      string
+	SangerID     string
+	SangerStatus string
+	SangerPass   bool
+	VariantID    string
+	Pos          int
+	Variant      *tracy.Variant
 }
 
 var VariantStringTitle = append(
 	tracy.VariantTitle,
 	"CloneID",
 	"SangerID",
+	"SangerStatus",
+	"SangerPass",
 )
 
 func (v *Variant) String() string {
 	return fmt.Sprintf(
-		"%s\t%s\t%s",
+		"%s\t%s\t%s\t%s\t%t",
 		v.Variant,
-		v.CloneID, v.SangerID,
+		v.CloneID,
+		v.SangerID,
+		v.SangerStatus,
+		v.SangerPass,
 	)
 }
 
@@ -454,12 +461,14 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			}
 			for _, variant := range result.Variants.Variants {
 				variants = append(variants, &Variant{
-					GeneID:    id,
-					CloneID:   cloneID,
-					SangerID:  strconv.Itoa(i + 1),
-					VariantID: fmt.Sprintf("%s_%d_%s_%s", variant.Chr, variant.Pos, variant.Ref, variant.Alt),
-					Pos:       variant.Pos,
-					Variant:   variant,
+					GeneID:       id,
+					CloneID:      cloneID,
+					SangerID:     strconv.Itoa(i + 1),
+					SangerStatus: result.Status,
+					SangerPass:   result.Pass,
+					VariantID:    fmt.Sprintf("%s_%d_%s_%s", variant.Chr, variant.Pos, variant.Ref, variant.Alt),
+					Pos:          variant.Pos,
+					Variant:      variant,
 				})
 			}
 		}
@@ -483,6 +492,11 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 	var cloneVariants = make(map[string]*CloneVariant)
 	for _, variant := range variants {
 		fmtUtil.Fprintln(out, variant)
+
+		if !variant.SangerPass {
+			continue
+		}
+
 		key := variant.CloneID + "_" + variant.VariantID
 		cv, ok := cloneVariants[key]
 		if ok {
