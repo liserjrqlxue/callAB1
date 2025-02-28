@@ -68,7 +68,7 @@ func init() {
 func main() {
 
 	if *input2 == "" {
-		tracy.RunSingle(*bin, *ref, *input, *prefix)
+		tracy.RunSingle(*bin, *ref, *input, *prefix, false)
 	} else {
 		tracy.RunPair(*bin, *ref, *input, *input2, *prefix)
 	}
