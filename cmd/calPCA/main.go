@@ -392,6 +392,7 @@ type VariantSet struct {
 	Pos        int
 	CloneID    []string
 	CloneCount int
+	ClonePass  int
 	Variant    *tracy.Variant
 }
 
@@ -402,17 +403,21 @@ var VariantSetStringTitle = []string{
 	"Alt",
 	"Type",
 	"CloneCount",
+	"ClonePass",
+	"CloneRatio",
 }
 
 func (v *VariantSet) String() string {
 	return fmt.Sprintf(
-		"%s\t%d\t%s\t%s\t%s\t%d",
+		"%s\t%d\t%s\t%s\t%s\t%d\t%d\t%f",
 		v.Variant.Chr,
 		v.Variant.Pos,
 		v.Variant.Ref,
 		v.Variant.Alt,
 		v.Variant.Type,
 		v.CloneCount,
+		v.ClonePass,
+		float64(v.CloneCount)/float64(v.ClonePass),
 	)
 }
 
@@ -420,7 +425,8 @@ type PosVariantSet struct {
 	GeneID       string
 	Pos          int
 	VariantID    map[string]int
-	variantCount int
+	VariantCount int
+	ClonePass    int
 	Variant      *tracy.Variant
 }
 
@@ -428,14 +434,18 @@ var PosVariantSetStringTitle = []string{
 	"Chr",
 	"Pos",
 	"VariantCount",
+	"ClonePass",
+	"PosRatio",
 }
 
 func (v *PosVariantSet) String() string {
 	return fmt.Sprintf(
-		"%s\t%d\t%d",
+		"%s\t%d\t%d\t%d\t%f",
 		v.Variant.Chr,
 		v.Variant.Pos,
-		v.variantCount,
+		v.VariantCount,
+		v.ClonePass,
+		float64(v.VariantCount)/float64(v.ClonePass),
 	)
 }
 
@@ -454,10 +464,15 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 	}
 
 	var variants []*Variant
+	var clonePass int // 有效克隆数
 	for cloneID, results := range result {
+		pass := false
 		for i, result := range results {
 			if result == nil || result.Variants == nil {
 				continue
+			}
+			if result.Pass {
+				pass = true
 			}
 			for _, variant := range result.Variants.Variants {
 				variants = append(variants, &Variant{
@@ -471,6 +486,9 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 					Variant:      variant,
 				})
 			}
+		}
+		if pass {
+			clonePass++
 		}
 	}
 	// 按Pos排序
@@ -534,6 +552,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 				Pos:        cl.Pos,
 				CloneID:    []string{cl.CloneID},
 				CloneCount: 1,
+				ClonePass:  clonePass,
 				Variant:    cl.Variant,
 			}
 		}
@@ -569,13 +588,14 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 		pvs, ok := posVariantsSet[key]
 		if ok {
 			pvs.VariantID[vs.VariantID]++
-			pvs.variantCount++
+			pvs.VariantCount++
 		} else {
 			pvs = &PosVariantSet{
 				GeneID:       vs.GeneID,
 				Pos:          vs.Pos,
 				VariantID:    map[string]int{vs.VariantID: 1},
-				variantCount: 1,
+				VariantCount: 1,
+				ClonePass:    clonePass,
 				Variant:      vs.Variant,
 			}
 		}
