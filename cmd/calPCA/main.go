@@ -323,7 +323,6 @@ type tracyResult struct {
 	seqLines    []any
 }
 type Variant struct {
-	ID        string
 	GeneID    string
 	CloneID   string
 	SangerID  string
@@ -334,8 +333,6 @@ type Variant struct {
 
 var VariantStringTitle = append(
 	[]string{
-		"ID",
-		"GeneID",
 		"CloneID",
 		"SangerID",
 		"VariantID",
@@ -346,15 +343,14 @@ var VariantStringTitle = append(
 
 func (v *Variant) String() string {
 	return fmt.Sprintf(
-		"%s\t%s\t%s\t%s\t%s\t%d\t%s",
-		v.ID, v.GeneID, v.CloneID, v.SangerID, v.VariantID,
+		"%s\t%s\t%s\t%d\t%s",
+		v.CloneID, v.SangerID, v.VariantID,
 		v.Pos,
 		v.Variant,
 	)
 }
 
 type CloneVariant struct {
-	ID          string
 	GeneID      string
 	CloneID     string
 	VariantID   string
@@ -365,7 +361,6 @@ type CloneVariant struct {
 }
 
 var CloneVariantStringTitle = []string{
-	"ID",
 	"GeneID",
 	"CloneID",
 	"VariantID",
@@ -380,8 +375,8 @@ var CloneVariantStringTitle = []string{
 
 func (v *CloneVariant) String() string {
 	return fmt.Sprintf(
-		"%s\t%s\t%s\t%s\t%d\t%d\t%s\t%d\t%s\t%s\t%s",
-		v.ID, v.GeneID, v.CloneID, v.VariantID,
+		"%s\t%s\t%s\t%d\t%d\t%s\t%d\t%s\t%s\t%s",
+		v.GeneID, v.CloneID, v.VariantID,
 		v.Pos, v.SangerCount,
 		v.Variant.Chr,
 		v.Variant.Pos,
@@ -392,7 +387,6 @@ func (v *CloneVariant) String() string {
 }
 
 type VariantSet struct {
-	ID         string
 	GeneID     string
 	VariantID  string
 	Pos        int
@@ -402,7 +396,6 @@ type VariantSet struct {
 }
 
 var VariantSetStringTitle = []string{
-	"ID",
 	"GeneID",
 	"VariantID",
 	"Pos",
@@ -416,8 +409,8 @@ var VariantSetStringTitle = []string{
 
 func (v *VariantSet) String() string {
 	return fmt.Sprintf(
-		"%s\t%s\t%s\t%d\t%d\t%s\t%d\t%s\t%s\t%s",
-		v.ID, v.GeneID, v.VariantID,
+		"%s\t%s\t%d\t%d\t%s\t%d\t%s\t%s\t%s",
+		v.GeneID, v.VariantID,
 		v.Pos, v.CloneCount,
 		v.Variant.Chr,
 		v.Variant.Pos,
@@ -428,7 +421,6 @@ func (v *VariantSet) String() string {
 }
 
 type PosVariantSet struct {
-	ID           string
 	GeneID       string
 	Pos          int
 	VariantID    map[string]int
@@ -437,7 +429,6 @@ type PosVariantSet struct {
 }
 
 var PosVariantSetStringTitle = []string{
-	"ID",
 	"GeneID",
 	"Pos",
 	"VariantCount",
@@ -447,8 +438,8 @@ var PosVariantSetStringTitle = []string{
 
 func (v *PosVariantSet) String() string {
 	return fmt.Sprintf(
-		"%s\t%s\t%d\t%d\t%s\t%d",
-		v.ID, v.GeneID,
+		"%s\t%d\t%d\t%s\t%d",
+		v.GeneID,
 		v.Pos, v.variantCount,
 		v.Variant.Chr,
 		v.Variant.Pos,
@@ -477,10 +468,9 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			}
 			for _, variant := range result.Variants.Variants {
 				variants = append(variants, &Variant{
-					ID:        variant.ID,
 					GeneID:    id,
 					CloneID:   cloneID,
-					SangerID:  fmt.Sprintf("%s_%d", cloneID, i),
+					SangerID:  fmt.Sprintf("%s_%d", cloneID, i+1),
 					VariantID: fmt.Sprintf("%s_%d_%s_%s", variant.Chr, variant.Pos, variant.Ref, variant.Alt),
 					Pos:       variant.Pos,
 					Variant:   variant,
@@ -514,7 +504,6 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			cv.SangerCount = len(cv.SangerID)
 		} else {
 			cv = &CloneVariant{
-				ID:          variant.ID,
 				GeneID:      variant.GeneID,
 				CloneID:     variant.CloneID,
 				VariantID:   variant.VariantID,
@@ -540,7 +529,6 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			vs.CloneCount = len(vs.CloneID)
 		} else {
 			vs = &VariantSet{
-				ID:         cl.ID,
 				GeneID:     cl.GeneID,
 				VariantID:  cl.VariantID,
 				Pos:        cl.Pos,
@@ -584,7 +572,6 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			pvs.variantCount++
 		} else {
 			pvs = &PosVariantSet{
-				ID:           vs.ID,
 				GeneID:       vs.GeneID,
 				Pos:          vs.Pos,
 				VariantID:    map[string]int{vs.VariantID: 1},
