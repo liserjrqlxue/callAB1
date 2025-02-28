@@ -333,21 +333,16 @@ type Variant struct {
 }
 
 var VariantStringTitle = append(
-	[]string{
-		"CloneID",
-		"SangerID",
-		"VariantID",
-		"Pos",
-	},
-	tracy.VariantTitle...,
+	tracy.VariantTitle,
+	"CloneID",
+	"SangerID",
 )
 
 func (v *Variant) String() string {
 	return fmt.Sprintf(
-		"%s\t%s\t%s\t%d\t%s",
-		v.CloneID, v.SangerID, v.VariantID,
-		v.Pos,
+		"%s\t%s\t%s",
 		v.Variant,
+		v.CloneID, v.SangerID,
 	)
 }
 
@@ -362,28 +357,25 @@ type CloneVariant struct {
 }
 
 var CloneVariantStringTitle = []string{
-	"GeneID",
-	"CloneID",
-	"VariantID",
-	"Pos",
-	"SangerCount",
 	"Chr",
 	"Pos",
 	"Ref",
 	"Alt",
 	"Type",
+	"CloneID",
+	"SangerCount",
 }
 
 func (v *CloneVariant) String() string {
 	return fmt.Sprintf(
-		"%s\t%s\t%s\t%d\t%d\t%s\t%d\t%s\t%s\t%s",
-		v.GeneID, v.CloneID, v.VariantID,
-		v.Pos, v.SangerCount,
+		"%s\t%d\t%s\t%s\t%s\t%s\t%d",
 		v.Variant.Chr,
 		v.Variant.Pos,
 		v.Variant.Ref,
 		v.Variant.Alt,
 		v.Variant.Type,
+		v.CloneID,
+		v.SangerCount,
 	)
 }
 
@@ -397,27 +389,23 @@ type VariantSet struct {
 }
 
 var VariantSetStringTitle = []string{
-	"GeneID",
-	"VariantID",
-	"Pos",
-	"CloneCount",
 	"Chr",
 	"Pos",
 	"Ref",
 	"Alt",
 	"Type",
+	"CloneCount",
 }
 
 func (v *VariantSet) String() string {
 	return fmt.Sprintf(
-		"%s\t%s\t%d\t%d\t%s\t%d\t%s\t%s\t%s",
-		v.GeneID, v.VariantID,
-		v.Pos, v.CloneCount,
+		"%s\t%d\t%s\t%s\t%s\t%d",
 		v.Variant.Chr,
 		v.Variant.Pos,
 		v.Variant.Ref,
 		v.Variant.Alt,
 		v.Variant.Type,
+		v.CloneCount,
 	)
 }
 
@@ -430,20 +418,17 @@ type PosVariantSet struct {
 }
 
 var PosVariantSetStringTitle = []string{
-	"GeneID",
-	"Pos",
-	"VariantCount",
 	"Chr",
 	"Pos",
+	"VariantCount",
 }
 
 func (v *PosVariantSet) String() string {
 	return fmt.Sprintf(
-		"%s\t%d\t%d\t%s\t%d",
-		v.GeneID,
-		v.Pos, v.variantCount,
+		"%s\t%d\t%d",
 		v.Variant.Chr,
 		v.Variant.Pos,
+		v.variantCount,
 	)
 }
 
