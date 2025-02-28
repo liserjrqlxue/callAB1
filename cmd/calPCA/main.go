@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
@@ -24,6 +25,11 @@ var (
 		"i",
 		"",
 		"input 自合.xlsx",
+	)
+	inputOrder = flag.String(
+		"io",
+		"",
+		"input 引物订购单.xlsx",
 	)
 	outputDir = flag.String(
 		"o",
@@ -228,9 +234,14 @@ func main() {
 	// 写入 excel
 	simpleUtil.HandleError(inputXlsx.NewSheet("Sanger结果"))
 	inputXlsx.SetSheetRow("Sanger结果", "A1", &ResultTitle)
+	primerACC := make(map[string][2]float64)
 	row := 2
 	for _, id := range seqList {
 		for _, line := range resultLines[id] {
+			pID := line[1].(string)
+			acc := line[19].(float64)
+			geomMeanAcc := line[21].(float64)
+			primerACC[pID] = [2]float64{acc, geomMeanAcc}
 			inputXlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", row), &line)
 			row++
 		}
@@ -243,6 +254,61 @@ func main() {
 		line := seqLines[id]
 		inputXlsx.SetSheetRow("片段结果", fmt.Sprintf("A%d", row), &line)
 		row++
+	}
+
+	if *inputOrder != "" {
+		inputOderXlsx := simpleUtil.HandleError(excelize.OpenFile(*inputOrder))
+		rows := simpleUtil.HandleError(inputOderXlsx.GetRows("拼接引物板"))
+		simpleUtil.HandleError(inputXlsx.NewSheet("拼接引物板"))
+		for i, row := range rows {
+			for j, cell := range row {
+				inputXlsx.SetCellValue(
+					"拼接引物板",
+					simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1)),
+					cell,
+				)
+				pID := strings.Split(cell, "\n")[0]
+				accs, ok := primerACC[pID]
+				if ok {
+					inputXlsx.SetCellValue(
+						"拼接引物板",
+						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)+1)),
+						accs[0],
+					)
+					inputXlsx.SetCellValue(
+						"拼接引物板",
+						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)*2+2)),
+						accs[1],
+					)
+				} else {
+					inputXlsx.SetCellValue(
+						"拼接引物板",
+						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)+1)),
+						cell,
+					)
+					inputXlsx.SetCellValue(
+						"拼接引物板",
+						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)*2+2)),
+						cell,
+					)
+				}
+			}
+			inputXlsx.SetCellValue(
+				"拼接引物板",
+				simpleUtil.HandleError(excelize.CoordinatesToCellName(1, 1)),
+				"板位",
+			)
+			inputXlsx.SetCellValue(
+				"拼接引物板",
+				simpleUtil.HandleError(excelize.CoordinatesToCellName(1, 1+len(rows)+1)),
+				"平均准确率(%)",
+			)
+			inputXlsx.SetCellValue(
+				"拼接引物板",
+				simpleUtil.HandleError(excelize.CoordinatesToCellName(1, 1+len(rows)*2+2)),
+				"参考单步准确率(%)",
+			)
+		}
 	}
 
 	inputXlsx.SaveAs(*outputDir + ".Sanger结果.xlsx")
