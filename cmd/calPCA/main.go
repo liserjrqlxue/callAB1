@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -470,7 +471,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 				variants = append(variants, &Variant{
 					GeneID:    id,
 					CloneID:   cloneID,
-					SangerID:  fmt.Sprintf("%s_%d", cloneID, i+1),
+					SangerID:  strconv.Itoa(i + 1),
 					VariantID: fmt.Sprintf("%s_%d_%s_%s", variant.Chr, variant.Pos, variant.Ref, variant.Alt),
 					Pos:       variant.Pos,
 					Variant:   variant,
