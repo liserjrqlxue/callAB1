@@ -9,3 +9,19 @@ var (
 
 	SVThreshold = 3
 )
+
+var VariantTitle = []string{
+	"Chr",
+	"Pos",
+	"ID",
+	"Ref",
+	"Alt",
+	"Qual",
+	"Filter",
+	"Type",
+	"Genotype",
+	"Basepos",
+	"Signalpos",
+	"Xranges_1",
+	"Xranges_2",
+}

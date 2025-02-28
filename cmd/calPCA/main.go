@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -321,6 +322,138 @@ type tracyResult struct {
 	resultLines [][]any
 	seqLines    []any
 }
+type Variant struct {
+	ID        string
+	GeneID    string
+	CloneID   string
+	SangerID  string
+	VariantID string
+	Pos       int
+	Variant   *tracy.Variant
+}
+
+var VariantStringTitle = append(
+	[]string{
+		"ID",
+		"GeneID",
+		"CloneID",
+		"SangerID",
+		"VariantID",
+		"Pos",
+	},
+	tracy.VariantTitle...,
+)
+
+func (v *Variant) String() string {
+	return fmt.Sprintf(
+		"%s\t%s\t%s\t%s\t%s\t%d\t%s",
+		v.ID, v.GeneID, v.CloneID, v.SangerID, v.VariantID,
+		v.Pos,
+		v.Variant,
+	)
+}
+
+type CloneVariant struct {
+	ID          string
+	GeneID      string
+	CloneID     string
+	VariantID   string
+	Pos         int
+	SangerID    []string
+	SangerCount int
+	Variant     *tracy.Variant
+}
+
+var CloneVariantStringTitle = []string{
+	"ID",
+	"GeneID",
+	"CloneID",
+	"VariantID",
+	"Pos",
+	"SangerCount",
+	"Chr",
+	"Pos",
+	"Ref",
+	"Alt",
+	"Type",
+}
+
+func (v *CloneVariant) String() string {
+	return fmt.Sprintf(
+		"%s\t%s\t%s\t%s\t%d\t%d\t%s\t%d\t%s\t%s\t%s",
+		v.ID, v.GeneID, v.CloneID, v.VariantID,
+		v.Pos, v.SangerCount,
+		v.Variant.Chr,
+		v.Variant.Pos,
+		v.Variant.Ref,
+		v.Variant.Alt,
+		v.Variant.Type,
+	)
+}
+
+type VariantSet struct {
+	ID         string
+	GeneID     string
+	VariantID  string
+	Pos        int
+	CloneID    []string
+	CloneCount int
+	Variant    *tracy.Variant
+}
+
+var VariantSetStringTitle = []string{
+	"ID",
+	"GeneID",
+	"VariantID",
+	"Pos",
+	"CloneCount",
+	"Chr",
+	"Pos",
+	"Ref",
+	"Alt",
+	"Type",
+}
+
+func (v *VariantSet) String() string {
+	return fmt.Sprintf(
+		"%s\t%s\t%s\t%d\t%d\t%s\t%d\t%s\t%s\t%s",
+		v.ID, v.GeneID, v.VariantID,
+		v.Pos, v.CloneCount,
+		v.Variant.Chr,
+		v.Variant.Pos,
+		v.Variant.Ref,
+		v.Variant.Alt,
+		v.Variant.Type,
+	)
+}
+
+type PosVariantSet struct {
+	ID           string
+	GeneID       string
+	Pos          int
+	VariantID    map[string]int
+	variantCount int
+	Variant      *tracy.Variant
+}
+
+var PosVariantSetStringTitle = []string{
+	"ID",
+	"GeneID",
+	"Pos",
+	"VariantCount",
+	"Chr",
+	"Pos",
+}
+
+func (v *PosVariantSet) String() string {
+	return fmt.Sprintf(
+		"%s\t%s\t%d\t%d\t%s\t%d",
+		v.ID, v.GeneID,
+		v.Pos, v.variantCount,
+		v.Variant.Chr,
+		v.Variant.Pos,
+	)
+}
 
 func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputDir string, bin string, seqMap map[string]*Seq) tracyResult {
 	seq := seqMap[id]
@@ -335,6 +468,161 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 	} else {
 		result = RunTracyBatch(id, prefix, bin)
 	}
+
+	var variants []*Variant
+	for cloneID, results := range result {
+		for i, result := range results {
+			if result == nil || result.Variants == nil {
+				continue
+			}
+			for _, variant := range result.Variants.Variants {
+				variants = append(variants, &Variant{
+					ID:        variant.ID,
+					GeneID:    id,
+					CloneID:   cloneID,
+					SangerID:  fmt.Sprintf("%s_%d", cloneID, i),
+					VariantID: fmt.Sprintf("%s_%d_%s_%s", variant.Chr, variant.Pos, variant.Ref, variant.Alt),
+					Pos:       variant.Pos,
+					Variant:   variant,
+				})
+			}
+		}
+	}
+	// 按Pos排序
+	sort.Slice(
+		variants,
+		func(i, j int) bool {
+			if variants[i].Pos == variants[j].Pos {
+				if variants[i].VariantID == variants[j].VariantID {
+					return variants[i].SangerID < variants[j].SangerID
+				}
+				return variants[i].VariantID < variants[j].VariantID
+			}
+			return variants[i].Pos < variants[j].Pos
+		},
+	)
+	out := osUtil.Create(filepath.Join(outputDir, id+".variant.raw.txt"))
+	fmtUtil.FprintStringArray(out, VariantStringTitle, "\t")
+	// 合并同一克隆的变异
+	var cloneVariants = make(map[string]*CloneVariant)
+	for _, variant := range variants {
+		fmtUtil.Fprintln(out, variant)
+		key := variant.CloneID + "_" + variant.VariantID
+		cv, ok := cloneVariants[key]
+		if ok {
+			cv.SangerID = append(cv.SangerID, variant.SangerID)
+			cv.SangerCount = len(cv.SangerID)
+		} else {
+			cv = &CloneVariant{
+				ID:          variant.ID,
+				GeneID:      variant.GeneID,
+				CloneID:     variant.CloneID,
+				VariantID:   variant.VariantID,
+				Pos:         variant.Pos,
+				SangerID:    []string{variant.SangerID},
+				SangerCount: 1,
+				Variant:     variant.Variant,
+			}
+		}
+		cloneVariants[key] = cv
+	}
+	simpleUtil.CheckErr(out.Close())
+
+	// 合并同一变异
+	var variantsSet = make(map[string]*VariantSet)
+	var cloneVariantsArray []*CloneVariant
+	for _, cl := range cloneVariants {
+		cloneVariantsArray = append(cloneVariantsArray, cl)
+		key := cl.VariantID
+		vs, ok := variantsSet[key]
+		if ok {
+			vs.CloneID = append(vs.CloneID, cl.CloneID)
+			vs.CloneCount = len(vs.CloneID)
+		} else {
+			vs = &VariantSet{
+				ID:         cl.ID,
+				GeneID:     cl.GeneID,
+				VariantID:  cl.VariantID,
+				Pos:        cl.Pos,
+				CloneID:    []string{cl.CloneID},
+				CloneCount: 1,
+				Variant:    cl.Variant,
+			}
+		}
+		variantsSet[key] = vs
+	}
+
+	// 按Pos排序
+	sort.Slice(
+		cloneVariantsArray,
+		func(i, j int) bool {
+			if cloneVariantsArray[i].Pos == cloneVariantsArray[j].Pos {
+				if cloneVariantsArray[i].VariantID == cloneVariantsArray[j].VariantID {
+					return cloneVariantsArray[i].CloneID < cloneVariantsArray[j].CloneID
+				}
+				return cloneVariantsArray[i].VariantID < cloneVariantsArray[j].VariantID
+			}
+			return cloneVariantsArray[i].Pos < cloneVariantsArray[j].Pos
+		},
+	)
+	out = osUtil.Create(filepath.Join(outputDir, id+".variant.clone.txt"))
+	fmtUtil.FprintStringArray(out, CloneVariantStringTitle, "\t")
+	for _, cv := range cloneVariantsArray {
+		fmtUtil.Fprintln(out, cv)
+	}
+	simpleUtil.CheckErr(out.Close())
+
+	// 合并同一位置
+	var posVariantsSet = make(map[int]*PosVariantSet)
+	var variantsSetArray []*VariantSet
+	for _, vs := range variantsSet {
+		variantsSetArray = append(variantsSetArray, vs)
+		key := vs.Pos
+		pvs, ok := posVariantsSet[key]
+		if ok {
+			pvs.VariantID[vs.VariantID]++
+			pvs.variantCount++
+		} else {
+			pvs = &PosVariantSet{
+				ID:           vs.ID,
+				GeneID:       vs.GeneID,
+				Pos:          vs.Pos,
+				VariantID:    map[string]int{vs.VariantID: 1},
+				variantCount: 1,
+				Variant:      vs.Variant,
+			}
+		}
+		posVariantsSet[key] = pvs
+	}
+	// 按Pos排序
+	sort.Slice(
+		variantsSetArray,
+		func(i, j int) bool {
+			if variantsSetArray[i].Pos == variantsSetArray[j].Pos {
+				return variantsSetArray[i].VariantID < variantsSetArray[j].VariantID
+			}
+			return variantsSetArray[i].Pos < variantsSetArray[j].Pos
+		},
+	)
+	out = osUtil.Create(filepath.Join(outputDir, id+".variant.set.txt"))
+	fmtUtil.FprintStringArray(out, VariantSetStringTitle, "\t")
+	for _, vs := range variantsSetArray {
+		fmtUtil.Fprintln(out, vs)
+	}
+	simpleUtil.CheckErr(out.Close())
+
+	var posSet []int
+	for pos := range posVariantsSet {
+		posSet = append(posSet, pos)
+	}
+	sort.Ints(posSet)
+	out = osUtil.Create(filepath.Join(outputDir, id+".variant.pos.txt"))
+	fmtUtil.FprintStringArray(out, PosVariantSetStringTitle, "\t")
+	for _, pos := range posSet {
+		psv := posVariantsSet[pos]
+		fmtUtil.Fprintln(out, psv)
+	}
+	simpleUtil.CheckErr(out.Close())
 
 	return tracyResult{
 		id:          id,
