@@ -587,14 +587,14 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 		key := vs.Pos
 		pvs, ok := posVariantsSet[key]
 		if ok {
-			pvs.VariantID[vs.VariantID]++
-			pvs.VariantCount++
+			pvs.VariantID[vs.VariantID] += vs.CloneCount
+			pvs.VariantCount += vs.CloneCount
 		} else {
 			pvs = &PosVariantSet{
 				GeneID:       vs.GeneID,
 				Pos:          vs.Pos,
-				VariantID:    map[string]int{vs.VariantID: 1},
-				VariantCount: 1,
+				VariantID:    map[string]int{vs.VariantID: vs.CloneCount},
+				VariantCount: vs.CloneCount,
 				ClonePass:    clonePass,
 				Variant:      vs.Variant,
 			}
