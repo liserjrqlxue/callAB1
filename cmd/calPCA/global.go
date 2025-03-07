@@ -49,6 +49,25 @@ var (
 		"参考收率(%)",
 		"参考单步准确率(%)",
 	}
+	CloneVariantTitle = []string{
+		"Chr",
+		"Pos",
+		"Ref",
+		"Alt",
+		"Type",
+		"CloneID",
+		"SangerCount",
+	}
+	SetVariantTitle = []string{
+		"Chr",
+		"Pos",
+		"Ref",
+		"Alt",
+		"Type",
+		"CloneCount",
+		"ClonePass",
+		"CloneRatio",
+	}
 
 	tracyStatusTitle = []string{
 		"序列名称",

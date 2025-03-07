@@ -192,11 +192,13 @@ func main() {
 	simpleUtil.CheckErr(os.MkdirAll(*outputDir, 0755))
 
 	var (
-		cy0130           bool
-		rename           = make(map[string]string)
-		resultLines      = make(map[string][][]any)
-		tracyStatusLines = make(map[string][][]any)
-		seqLines         = make(map[string][]any)
+		cy0130            bool
+		rename            = make(map[string]string)
+		resultLines       = make(map[string][][]any)
+		tracyStatusLines  = make(map[string][][]any)
+		seqLines          = make(map[string][]any)
+		cloneVariantLines = make(map[string][][]any)
+		setVariantLines   = make(map[string][][]any)
 	)
 	if *renameTxt != "" {
 		cy0130 = true
@@ -223,6 +225,8 @@ func main() {
 		resultLines[result.id] = result.resultLines
 		tracyStatusLines[result.id] = result.statusLines
 		seqLines[result.id] = result.seqLines
+		cloneVariantLines[result.id] = result.cloneVariantLines
+		setVariantLines[result.id] = result.setVariantLines
 	}
 
 	// 写入 result
@@ -256,6 +260,28 @@ func main() {
 		line := seqLines[id]
 		inputXlsx.SetSheetRow("片段结果", fmt.Sprintf("A%d", row), &line)
 		row++
+	}
+
+	simpleUtil.HandleError(inputXlsx.NewSheet("Clone变异结果"))
+	inputXlsx.SetSheetRow("Clone变异结果", "A1", &CloneVariantTitle)
+	row = 2
+	for _, id := range seqList {
+		lines := cloneVariantLines[id]
+		for _, line := range lines {
+			inputXlsx.SetSheetRow("Clone变异结果", fmt.Sprintf("A%d", row), &line)
+			row++
+		}
+	}
+
+	simpleUtil.HandleError(inputXlsx.NewSheet("变异统计"))
+	inputXlsx.SetSheetRow("变异统计", "A1", &SetVariantTitle)
+	row = 2
+	for _, id := range seqList {
+		lines := setVariantLines[id]
+		for _, line := range lines {
+			inputXlsx.SetSheetRow("变异统计", fmt.Sprintf("A%d", row), &line)
+			row++
+		}
 	}
 
 	if *inputOrder != "" {
@@ -318,10 +344,12 @@ func main() {
 }
 
 type tracyResult struct {
-	id          string
-	statusLines [][]any
-	resultLines [][]any
-	seqLines    []any
+	id                string
+	statusLines       [][]any
+	resultLines       [][]any
+	seqLines          []any
+	cloneVariantLines [][]any
+	setVariantLines   [][]any
 }
 type Variant struct {
 	GeneID       string
@@ -463,7 +491,11 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 		result = RunTracyBatch(id, prefix, bin)
 	}
 
-	var variants []*Variant
+	var (
+		variants           []*Variant
+		cloneVariantsLines [][]any
+		setVariantLines    [][]any
+	)
 	var clonePass int // 有效克隆数
 	for cloneID, results := range result {
 		pass := false
@@ -576,6 +608,16 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 	fmtUtil.FprintStringArray(out, CloneVariantStringTitle, "\t")
 	for _, cv := range cloneVariantsArray {
 		fmtUtil.Fprintln(out, cv)
+		cvLine := []any{
+			cv.Variant.Chr,
+			cv.Variant.Pos,
+			cv.Variant.Ref,
+			cv.Variant.Alt,
+			cv.Variant.Type,
+			cv.CloneID,
+			cv.SangerCount,
+		}
+		cloneVariantsLines = append(cloneVariantsLines, cvLine)
 	}
 	simpleUtil.CheckErr(out.Close())
 
@@ -615,6 +657,17 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 	fmtUtil.FprintStringArray(out, VariantSetStringTitle, "\t")
 	for _, vs := range variantsSetArray {
 		fmtUtil.Fprintln(out, vs)
+		vsLine := []any{
+			vs.Variant.Chr,
+			vs.Variant.Pos,
+			vs.Variant.Ref,
+			vs.Variant.Alt,
+			vs.Variant.Type,
+			vs.CloneCount,
+			vs.ClonePass,
+			float64(vs.CloneCount) / float64(vs.ClonePass),
+		}
+		setVariantLines = append(setVariantLines, vsLine)
 	}
 	simpleUtil.CheckErr(out.Close())
 
@@ -632,9 +685,11 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 	simpleUtil.CheckErr(out.Close())
 
 	return tracyResult{
-		id:          id,
-		statusLines: GetTracyStatusLines(id, result),
-		resultLines: RecordSeqPrimer(seq, result, prefix),
-		seqLines:    RecordSeq(seq, result, prefix),
+		id:                id,
+		statusLines:       GetTracyStatusLines(id, result),
+		resultLines:       RecordSeqPrimer(seq, result, prefix),
+		seqLines:          RecordSeq(seq, result, prefix),
+		cloneVariantLines: cloneVariantsLines,
+		setVariantLines:   setVariantLines,
 	}
 }
