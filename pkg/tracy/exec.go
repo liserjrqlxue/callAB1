@@ -188,6 +188,9 @@ func RunSingle(tracy, ref, input, prefix string, override bool) (result Result, 
 	if result.Variants != nil && result.Variants.HetCount > HetCountLimit {
 		result.Status += "HighHet"
 	}
+	if len(result.BasecallPos) < 100 {
+		result.Status += "TooShort"
+	}
 	if result.Status == "" {
 		result.Pass = true
 		result.Status = "PASS"
