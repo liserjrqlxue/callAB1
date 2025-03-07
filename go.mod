@@ -4,6 +4,7 @@ go 1.23.4
 
 require (
 	github.com/liserjrqlxue/goUtil v0.2.1
+	github.com/samber/lo v1.49.1
 	github.com/xuri/excelize/v2 v2.9.0
 )
 

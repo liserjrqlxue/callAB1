@@ -18,6 +18,7 @@ import (
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 	"github.com/liserjrqlxue/goUtil/stringsUtil"
 	"github.com/liserjrqlxue/goUtil/textUtil"
+	"github.com/samber/lo"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -389,21 +390,15 @@ type CloneVariant struct {
 	SangerID    []string
 	SangerCount int
 	Variant     *tracy.Variant
-}
 
-var CloneVariantStringTitle = []string{
-	"Chr",
-	"Pos",
-	"Ref",
-	"Alt",
-	"Type",
-	"CloneID",
-	"SangerCount",
+	Qual   []int
+	Filter []string
+	Type   []string
 }
 
 func (v *CloneVariant) String() string {
 	return fmt.Sprintf(
-		"%s\t%d\t%s\t%s\t%s\t%s\t%d",
+		"%s\t%d\t%s\t%s\t%s\t%s\t%d\t%d\t%s\t%s",
 		v.Variant.Chr,
 		v.Variant.Pos,
 		v.Variant.Ref,
@@ -411,6 +406,9 @@ func (v *CloneVariant) String() string {
 		v.Variant.Type,
 		v.CloneID,
 		v.SangerCount,
+		lo.Max(v.Qual),
+		strings.Join(lo.Uniq(v.Filter), ","),
+		strings.Join(lo.Uniq(v.Type), ","),
 	)
 }
 
@@ -422,22 +420,15 @@ type VariantSet struct {
 	CloneCount int
 	ClonePass  int
 	Variant    *tracy.Variant
-}
 
-var VariantSetStringTitle = []string{
-	"Chr",
-	"Pos",
-	"Ref",
-	"Alt",
-	"Type",
-	"CloneCount",
-	"ClonePass",
-	"CloneRatio",
+	Qual   []int
+	Filter []string
+	Type   []string
 }
 
 func (v *VariantSet) String() string {
 	return fmt.Sprintf(
-		"%s\t%d\t%s\t%s\t%s\t%d\t%d\t%f",
+		"%s\t%d\t%s\t%s\t%s\t%d\t%d\t%f\t%d\t%s\t%s",
 		v.Variant.Chr,
 		v.Variant.Pos,
 		v.Variant.Ref,
@@ -446,6 +437,9 @@ func (v *VariantSet) String() string {
 		v.CloneCount,
 		v.ClonePass,
 		float64(v.CloneCount)/float64(v.ClonePass),
+		lo.Max(v.Qual),
+		strings.Join(lo.Uniq(v.Filter), ","),
+		strings.Join(lo.Uniq(v.Type), ","),
 	)
 }
 
@@ -551,6 +545,9 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 		cv, ok := cloneVariants[key]
 		if ok {
 			cv.SangerID = append(cv.SangerID, variant.SangerID)
+			cv.Qual = append(cv.Qual, variant.Variant.Qual)
+			cv.Filter = append(cv.Filter, variant.Variant.Filter)
+			cv.Type = append(cv.Type, variant.Variant.Type)
 			cv.SangerCount = len(cv.SangerID)
 		} else {
 			cv = &CloneVariant{
@@ -561,6 +558,9 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 				SangerID:    []string{variant.SangerID},
 				SangerCount: 1,
 				Variant:     variant.Variant,
+				Qual:        []int{variant.Variant.Qual},
+				Filter:      []string{variant.Variant.Filter},
+				Type:        []string{variant.Variant.Type},
 			}
 		}
 		cloneVariants[key] = cv
@@ -576,6 +576,9 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 		vs, ok := variantsSet[key]
 		if ok {
 			vs.CloneID = append(vs.CloneID, cl.CloneID)
+			vs.Qual = append(vs.Qual, cl.Qual...)
+			vs.Filter = append(vs.Filter, cl.Filter...)
+			vs.Type = append(vs.Type, vs.Type...)
 			vs.CloneCount = len(vs.CloneID)
 		} else {
 			vs = &VariantSet{
@@ -586,6 +589,9 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 				CloneCount: 1,
 				ClonePass:  clonePass,
 				Variant:    cl.Variant,
+				Qual:       cl.Qual,
+				Filter:     cl.Filter,
+				Type:       cl.Type,
 			}
 		}
 		variantsSet[key] = vs
@@ -605,7 +611,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 		},
 	)
 	out = osUtil.Create(filepath.Join(outputDir, id+".variant.clone.txt"))
-	fmtUtil.FprintStringArray(out, CloneVariantStringTitle, "\t")
+	fmtUtil.FprintStringArray(out, CloneVariantTitle, "\t")
 	for _, cv := range cloneVariantsArray {
 		fmtUtil.Fprintln(out, cv)
 		cvLine := []any{
@@ -616,6 +622,9 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			cv.Variant.Type,
 			cv.CloneID,
 			cv.SangerCount,
+			lo.Max(cv.Qual),
+			strings.Join(lo.Uniq(cv.Filter), ","),
+			strings.Join(lo.Uniq(cv.Type), ","),
 		}
 		cloneVariantsLines = append(cloneVariantsLines, cvLine)
 	}
@@ -654,7 +663,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 		},
 	)
 	out = osUtil.Create(filepath.Join(outputDir, id+".variant.set.txt"))
-	fmtUtil.FprintStringArray(out, VariantSetStringTitle, "\t")
+	fmtUtil.FprintStringArray(out, SetVariantTitle, "\t")
 	for _, vs := range variantsSetArray {
 		fmtUtil.Fprintln(out, vs)
 		vsLine := []any{
@@ -666,6 +675,9 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			vs.CloneCount,
 			vs.ClonePass,
 			float64(vs.CloneCount) / float64(vs.ClonePass),
+			lo.Max(vs.Qual),
+			strings.Join(lo.Uniq(vs.Filter), ","),
+			strings.Join(lo.Uniq(vs.Type), ","),
 		}
 		setVariantLines = append(setVariantLines, vsLine)
 	}
