@@ -59,7 +59,7 @@ var (
 		"SangerCount",
 		"MaxQual",
 		"Filter",
-		"Type",
+		"Genotype",
 	}
 	SetVariantTitle = []string{
 		"Chr",
@@ -72,7 +72,7 @@ var (
 		"CloneRatio",
 		"MaxQual",
 		"Filter",
-		"Type",
+		"Genotype",
 	}
 
 	tracyStatusTitle = []string{

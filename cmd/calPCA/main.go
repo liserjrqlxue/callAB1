@@ -391,9 +391,9 @@ type CloneVariant struct {
 	SangerCount int
 	Variant     *tracy.Variant
 
-	Qual   []int
-	Filter []string
-	Type   []string
+	Qual     []int
+	Filter   []string
+	Genotype []string
 }
 
 func (v *CloneVariant) String() string {
@@ -408,7 +408,7 @@ func (v *CloneVariant) String() string {
 		v.SangerCount,
 		lo.Max(v.Qual),
 		strings.Join(lo.Uniq(v.Filter), ","),
-		strings.Join(lo.Uniq(v.Type), ","),
+		strings.Join(lo.Uniq(v.Genotype), ","),
 	)
 }
 
@@ -421,9 +421,9 @@ type VariantSet struct {
 	ClonePass  int
 	Variant    *tracy.Variant
 
-	Qual   []int
-	Filter []string
-	Type   []string
+	Qual     []int
+	Filter   []string
+	Genotype []string
 }
 
 func (v *VariantSet) String() string {
@@ -439,7 +439,7 @@ func (v *VariantSet) String() string {
 		float64(v.CloneCount)/float64(v.ClonePass),
 		lo.Max(v.Qual),
 		strings.Join(lo.Uniq(v.Filter), ","),
-		strings.Join(lo.Uniq(v.Type), ","),
+		strings.Join(lo.Uniq(v.Genotype), ","),
 	)
 }
 
@@ -547,7 +547,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			cv.SangerID = append(cv.SangerID, variant.SangerID)
 			cv.Qual = append(cv.Qual, variant.Variant.Qual)
 			cv.Filter = append(cv.Filter, variant.Variant.Filter)
-			cv.Type = append(cv.Type, variant.Variant.Type)
+			cv.Genotype = append(cv.Genotype, variant.Variant.Type)
 			cv.SangerCount = len(cv.SangerID)
 		} else {
 			cv = &CloneVariant{
@@ -560,7 +560,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 				Variant:     variant.Variant,
 				Qual:        []int{variant.Variant.Qual},
 				Filter:      []string{variant.Variant.Filter},
-				Type:        []string{variant.Variant.Type},
+				Genotype:    []string{variant.Variant.Genotype},
 			}
 		}
 		cloneVariants[key] = cv
@@ -578,7 +578,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			vs.CloneID = append(vs.CloneID, cl.CloneID)
 			vs.Qual = append(vs.Qual, cl.Qual...)
 			vs.Filter = append(vs.Filter, cl.Filter...)
-			vs.Type = append(vs.Type, vs.Type...)
+			vs.Genotype = append(vs.Genotype, vs.Genotype...)
 			vs.CloneCount = len(vs.CloneID)
 		} else {
 			vs = &VariantSet{
@@ -591,7 +591,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 				Variant:    cl.Variant,
 				Qual:       cl.Qual,
 				Filter:     cl.Filter,
-				Type:       cl.Type,
+				Genotype:   cl.Genotype,
 			}
 		}
 		variantsSet[key] = vs
@@ -624,7 +624,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			cv.SangerCount,
 			lo.Max(cv.Qual),
 			strings.Join(lo.Uniq(cv.Filter), ","),
-			strings.Join(lo.Uniq(cv.Type), ","),
+			strings.Join(lo.Uniq(cv.Genotype), ","),
 		}
 		cloneVariantsLines = append(cloneVariantsLines, cvLine)
 	}
@@ -677,7 +677,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 			float64(vs.CloneCount) / float64(vs.ClonePass),
 			lo.Max(vs.Qual),
 			strings.Join(lo.Uniq(vs.Filter), ","),
-			strings.Join(lo.Uniq(vs.Type), ","),
+			strings.Join(lo.Uniq(vs.Genotype), ","),
 		}
 		setVariantLines = append(setVariantLines, vsLine)
 	}
