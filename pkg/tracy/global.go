@@ -5,7 +5,7 @@ var (
 	MaxLength = 700
 
 	BoundMatchRaitoLimit = 0.9
-	HetCountLimit        = 50
+	HetCountLimit        = 30
 
 	SVThreshold = 3
 )
