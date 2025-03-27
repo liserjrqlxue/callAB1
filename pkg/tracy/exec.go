@@ -118,7 +118,9 @@ func RunDecompose(tracy, ref, input, prefix string, left, right int, stdout, std
 		err = Decompose(tracy, ref, input, prefix, left, right, stdout, stderr)
 		if err != nil {
 			slog.Error("Decompose", "err", err)
-			return Result{Status: "DecomposeFail", Pass: false}, err
+			result = Result{Status: "DecomposeFail", Pass: false}
+			os.WriteFile(jsonFile, simpleUtil.HandleError(json.Marshal(result)), 0644)
+			return
 		}
 	}
 
@@ -169,7 +171,7 @@ func RunSingle(tracy, ref, input, prefix string, override bool) (result Result, 
 
 	result, err = RunDecompose(tracy, ref, input, prefix, left, right, stdout, stderr, override)
 	result.AlignResult = &alignResult
-	if err == nil {
+	if err == nil && result.Variants != nil {
 		result.Variants.CalVariants()
 		var out = osUtil.Create(prefix + ".decompose.variants.txt")
 		defer simpleUtil.DeferClose(out)

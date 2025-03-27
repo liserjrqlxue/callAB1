@@ -23,6 +23,8 @@ var (
 		"准确率(%)",
 		"参考收率(%)",
 		"参考单步准确率(%)",
+		"有效Sanger列表",
+		"正确Sanger列表",
 	}
 
 	ResultTitle = []string{

@@ -237,6 +237,7 @@ func main() {
 	// 写入 tracy result
 	tracyFormat := "%s\t%s\t%d\t%s\t%v\t%d\t%d\t%f\n"
 	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, seqList, tracyStatusLines)
+	WriteSliceSheet(inputXlsx, "Sanger统计", tracyStatusTitle, seqList, tracyStatusLines)
 
 	// 写入 excel
 	simpleUtil.HandleError(inputXlsx.NewSheet("Sanger结果"))

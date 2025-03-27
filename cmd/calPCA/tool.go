@@ -14,6 +14,8 @@ import (
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
+	"github.com/samber/lo"
+	"github.com/xuri/excelize/v2"
 )
 
 func RunTracy(id, tag, prefix, bin, sangerIndex string, result map[string][2]*tracy.Result) {
@@ -273,6 +275,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		ln                = 0                   // length * n
 		yeildPercent      = 1.0                 // 收率
 		geoMeanAccPercent = 1.0                 // 平均准确率
+		sangerSet         []string
 
 		vSet         = make(map[string]bool)
 		vPosRatio    = make(map[string]float64)
@@ -285,9 +288,14 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		if Record1Result(seq, result, out, seq.ID, sangerPairIndex, 0, vSet) {
 			n++
 			variantCount := 0
+			sangerSet = append(sangerSet, sangerPairIndex)
 			for _, r := range pairResult {
 				if r != nil && r.Variants != nil {
-					variantCount += len(r.Variants.Variants)
+					for _, v := range r.Variants.Variants {
+						if v.Pos >= seq.Start && v.Pos <= seq.End {
+							variantCount++
+						}
+					}
 				}
 			}
 			if variantCount == 0 {
@@ -345,6 +353,8 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 			vAccPercent,
 			yeildPercent,
 			geoMeanAccPercent,
+			sangerSet,
+			lo.Keys(selectClones),
 		}
 	} else {
 		resultLine = []any{
@@ -365,10 +375,12 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 			vTypePercent["Deletion"],
 			vTypePercent["SV"],
 			0.0, 0.0, 0.0, 0.0,
+			sangerSet,
+			lo.Keys(selectClones),
 		}
 	}
 	// 写入 result
-	resultFormat := "%s\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\n"
+	resultFormat := "%s\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%v\t%v\n"
 	fmtUtil.Fprintf(out, resultFormat, resultLine...)
 
 	return
@@ -388,7 +400,7 @@ func WriteResultTxt(path string, title, lines []string) {
 	fmtUtil.FprintStringArray(resultFile, lines, "\n")
 }
 
-func WriteSlice(path, format string, title, list []string, data map[string][][]interface{}) {
+func WriteSlice(path, format string, title, list []string, data map[string][][]any) {
 	resultFile := osUtil.Create(path)
 	defer simpleUtil.DeferClose(resultFile)
 
@@ -396,6 +408,19 @@ func WriteSlice(path, format string, title, list []string, data map[string][][]i
 	for _, v := range list {
 		for _, s := range data[v] {
 			fmtUtil.Fprintf(resultFile, format, s...)
+		}
+	}
+}
+
+func WriteSliceSheet(xlsx *excelize.File, sheet string, title, list []string, data map[string][][]any) {
+	simpleUtil.HandleError(xlsx.NewSheet(sheet))
+	xlsx.SetSheetRow(sheet, "A1", &title)
+
+	row := 2
+	for _, v := range list {
+		for _, s := range data[v] {
+			xlsx.SetSheetRow(sheet, "A"+strconv.Itoa(row), &s)
+			row++
 		}
 	}
 }
