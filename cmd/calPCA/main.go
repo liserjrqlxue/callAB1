@@ -151,7 +151,7 @@ func main() {
 			switch title[j] {
 			case "引物对名称":
 				pair.ID = cell
-				pair.RefID = cell[:len(cell)-1]
+				pair.RefID = strings.TrimSuffix(cell[:len(cell)-1], "_")
 			case "引物对序列":
 				pair.Seq = cell
 			case "有效序列-起点":
@@ -174,7 +174,7 @@ func main() {
 		}
 		refSeq, ok := seqMap[pair.RefID]
 		if !ok {
-			log.Fatal("ref not found for:", pair.ID)
+			log.Fatalf("ref not found for:[id:%s,ref:%s],[keys:%+v]", pair.ID, pair.RefID, lo.Keys(seqMap))
 		}
 		// 检查符合
 		if refSeq.Seq[refSeq.Start:refSeq.End][pair.RefStart:pair.RefEnd] != pair.Seq[pair.Start:pair.End] {
@@ -203,17 +203,30 @@ func main() {
 	)
 	if *renameTxt != "" {
 		cy0130 = true
-		rename = simpleUtil.HandleError(textUtil.File2Map(*renameTxt, "\t", false))
+		if osUtil.FileExists(*renameTxt) {
+			rename = simpleUtil.HandleError(textUtil.File2Map(*renameTxt, "\t", false))
+		} else {
+			for _, id := range seqList {
+				// rename[id] = strings.Replace(id, "A", "-A", 1)
+				rename[id] = id
+			}
+		}
+		slog.Info("RENAME", "rename", rename)
 	}
 
 	results := make(chan tracyResult, len(seqList)) // 缓冲通道提升性能
 	var wg sync.WaitGroup
 	for i, id := range seqList {
-		wg.Add(1)
-		go func(i int, id string) {
-			defer wg.Done()
-			results <- processSeq(i, id, cy0130, rename, *outputDir, *bin, seqMap)
-		}(i, id)
+		renameID, ok := rename[id]
+		if !ok {
+			slog.Error("Skip", "i", i, "id", id)
+		} else {
+			wg.Add(1)
+			go func(i int, id string) {
+				defer wg.Done()
+				results <- processSeq(i, id, cy0130, renameID, *outputDir, *bin, seqMap)
+			}(i, id)
+		}
 	}
 
 	// 等待所有任务完成并关闭通道
@@ -472,7 +485,7 @@ func (v *PosVariantSet) String() string {
 	)
 }
 
-func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputDir string, bin string, seqMap map[string]*Seq) tracyResult {
+func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin string, seqMap map[string]*Seq) tracyResult {
 	seq := seqMap[id]
 	slog.Info("seq", "index", i+1, "id", seq.ID, "start", seq.Start, "end", seq.End)
 
@@ -481,7 +494,7 @@ func processSeq(i int, id string, cy0130 bool, rename map[string]string, outputD
 
 	var result map[string][2]*tracy.Result
 	if cy0130 {
-		result = RunTracyBatchCy0130(rename[id], prefix, bin)
+		result = RunTracyBatchCy0130(renameID, prefix, bin)
 	} else {
 		result = RunTracyBatch(id, prefix, bin)
 	}
