@@ -329,6 +329,11 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		vTypePercent[tp] = float64(vTypeCounts[tp]*100) / float64(ln)
 	}
 
+	// 正确克隆
+	rightCloneIDs := lo.Keys(selectClones)
+	rcIDs := strings.Join(rightCloneIDs, "、")
+	rcIDs1 := strings.Join(rightCloneIDs[:min(2, len(rightCloneIDs))], "、")
+	rcIDs2 := strings.Join(rightCloneIDs[min(2, len(rightCloneIDs)):], "、")
 	if n > 0 {
 		vErrPercent := float64(len(vSet)*100) / float64(ln)
 		vAccPercent := 100.0 - vErrPercent
@@ -354,7 +359,9 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 			yeildPercent,
 			geoMeanAccPercent,
 			sangerSet,
-			lo.Keys(selectClones),
+			rcIDs,
+			rcIDs1,
+			rcIDs2,
 		}
 	} else {
 		resultLine = []any{
@@ -376,7 +383,9 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 			vTypePercent["SV"],
 			0.0, 0.0, 0.0, 0.0,
 			sangerSet,
-			lo.Keys(selectClones),
+			rcIDs,
+			rcIDs1,
+			rcIDs2,
 		}
 	}
 	// 写入 result
