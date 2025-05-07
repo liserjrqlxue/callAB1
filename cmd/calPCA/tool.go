@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -264,6 +265,63 @@ func RecordSeqPrimer(seq *Seq, result map[string][2]*tracy.Result, prefix string
 	return
 }
 
+type PosScore struct {
+	Pos int
+	Sum float64
+	Key string
+}
+
+func GetHightRatio(vPosRatio map[string]float64, k, n int) map[string]float64 {
+	// 第一步：构建每个位置的窗口总和
+	var scores []PosScore
+	for posStr := range vPosRatio {
+		pos, err := strconv.Atoi(posStr)
+		if err != nil {
+			continue
+		}
+		var sum float64 = 0
+		for i := pos - k; i <= pos+k; i++ {
+			key := strconv.Itoa(i)
+			if val, ok := vPosRatio[key]; ok {
+				sum += val
+			}
+		}
+		scores = append(scores, PosScore{Pos: pos, Sum: sum, Key: posStr})
+	}
+
+	// 第二步：按窗口总和降序排序
+	sort.Slice(scores, func(i, j int) bool {
+		return scores[i].Sum > scores[j].Sum
+	})
+
+	// 第三步：选择非重叠窗口
+	used := make(map[int]bool)
+	vPosHightRatio := make(map[string]float64)
+
+	for _, score := range scores {
+		overlap := false
+		for i := score.Pos - k; i <= score.Pos+k; i++ {
+			if used[i] {
+				overlap = true
+				break
+			}
+		}
+		if overlap {
+			continue
+		}
+		if score.Sum >= 4 || score.Sum/float64(n) >= 0.6 {
+			// 标记中心位置
+			vPosHightRatio[score.Key] = vPosRatio[score.Key]
+			// 标记这个窗口的所有位置为已使用
+			for i := score.Pos - k; i <= score.Pos+k; i++ {
+				used[i] = true
+			}
+		}
+	}
+
+	return vPosHightRatio
+}
+
 func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLine []any) {
 	out := osUtil.Create(prefix + ".seq.result.txt")
 	defer simpleUtil.DeferClose(out)
@@ -315,13 +373,11 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		vTypeCounts[spt[4]]++
 	}
 
+	vPosHightRatio = GetHightRatio(vPosRatio, 1, n)
 	// 计算收率
 	for pos := range vPosRatio {
 		vPosRatio[pos] /= float64(n)
 		yeildPercent *= 1.0 - vPosRatio[pos]
-		if vPosRatio[pos] >= 0.6 {
-			vPosHightRatio[pos] = vPosRatio[pos]
-		}
 	}
 
 	// 计算几何平均
