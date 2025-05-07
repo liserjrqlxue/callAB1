@@ -270,18 +270,19 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 
 	var (
 		length            = seq.End - seq.Start // 长度
-		n                 = 0                   // sanger 个数
-		failN             = 0                   // 失败个数
+		n                 = 0                   // 有效Sanger个数
+		failN             = 0                   // 无效Sanger个数
 		ln                = 0                   // length * n
 		yeildPercent      = 1.0                 // 收率
 		geoMeanAccPercent = 1.0                 // 平均准确率
 		sangerSet         []string
 
-		vSet         = make(map[string]bool)
-		vPosRatio    = make(map[string]float64)
-		vTypeCounts  = make(map[string]int)
-		vTypePercent = make(map[string]float64)
-		selectClones = make(map[string]bool)
+		vSet           = make(map[string]bool)    // 变异
+		vPosRatio      = make(map[string]float64) // 变异位置
+		vPosHightRatio = make(map[string]float64) // 高频变异位置
+		vTypeCounts    = make(map[string]int)
+		vTypePercent   = make(map[string]float64)
+		selectClones   = make(map[string]bool) // 正确克隆
 	)
 
 	for sangerPairIndex, pairResult := range result {
@@ -318,6 +319,9 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 	for pos := range vPosRatio {
 		vPosRatio[pos] /= float64(n)
 		yeildPercent *= 1.0 - vPosRatio[pos]
+		if vPosRatio[pos] >= 0.6 {
+			vPosHightRatio[pos] = vPosRatio[pos]
+		}
 	}
 
 	// 计算几何平均
@@ -346,6 +350,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 			len(selectClones),
 			len(vPosRatio),
 			len(vSet),
+			len(vPosRatio),
 			vTypeCounts["SNV"],
 			vTypeCounts["Insertion"],
 			vTypeCounts["Deletion"],
@@ -373,6 +378,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 			len(selectClones),
 			len(vPosRatio),
 			len(vSet),
+			len(vPosRatio),
 			vTypeCounts["SNV"],
 			vTypeCounts["Insertion"],
 			vTypeCounts["Deletion"],
