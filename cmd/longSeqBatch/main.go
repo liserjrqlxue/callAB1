@@ -68,6 +68,7 @@ type Gene struct {
 	ID      string
 	Seq     string
 	RefPath string
+	Prefix  string
 
 	Clones map[string]*Clone
 
@@ -115,62 +116,14 @@ func main() {
 		xlsx       = simpleUtil.HandleError(excelize.OpenFile(*refXlsx))
 		resultXlsx = excelize.NewFile()
 
-		rows     = simpleUtil.HandleError(xlsx.GetRows("Sheet1"))
-		title    []string
-		geneInfo = make(map[string]*Gene)
+		geneInfo map[string]*Gene
 		geneList []string
 	)
+	sheet1Data := GetRows2MapArray(xlsx, "Sheet1")
+	geneInfo, geneList = CreateGeneInfoFromDataArray(sheet1Data)
 
-	for i := range rows {
-		if i == 0 {
-			title = rows[i]
-			continue
-		}
-		var item = make(map[string]string)
-		for j := range rows[i] {
-			item[title[j]] = rows[i][j]
-		}
-		gene := &Gene{
-			ID:     item["基因名称"],
-			Seq:    item["目标序列"],
-			Clones: make(map[string]*Clone),
-		}
-		geneInfo[gene.ID] = gene
-		geneList = append(geneList, gene.ID)
-	}
-
-	rows = simpleUtil.HandleError(xlsx.GetRows("Sheet2"))
-	for i := range rows {
-		if i == 0 {
-			title = rows[i]
-			continue
-		}
-		var item = make(map[string]string)
-		for j := range rows[i] {
-			item[title[j]] = rows[i][j]
-		}
-		geneID := item["基因名称"]
-		cloneID := item["基因名称"] + "_C" + item["克隆号"]
-		sangerPath := filepath.Join(*seqDir, item["文件名"])
-		sanger := &Sanger{
-			Path: sangerPath,
-		}
-
-		gene, ok := geneInfo[geneID]
-		if !ok {
-			log.Fatalf("GeneID not exists:[%s]", geneID)
-		}
-		clone, ok := gene.Clones[cloneID]
-		if !ok {
-			clone = &Clone{
-				ID:     cloneID,
-				GeneID: geneID,
-			}
-			gene.Clones[cloneID] = clone
-		}
-		clone.Sangers = append(clone.Sangers, sanger)
-		sanger.Index = len(clone.Sangers)
-	}
+	sheet2Data := GetRows2MapArray(xlsx, "Sheet2")
+	LoadSangerFromDataArray(geneInfo, sheet2Data)
 
 	simpleUtil.CheckErr(os.MkdirAll(filepath.Join(*outDir, "ref"), 0755))
 

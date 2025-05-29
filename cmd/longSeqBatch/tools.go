@@ -2,7 +2,12 @@ package main
 
 import (
 	"callAB1/pkg/tracy"
+	"log"
+	"path/filepath"
 	"sort"
+
+	"github.com/liserjrqlxue/goUtil/simpleUtil"
+	"github.com/xuri/excelize/v2"
 )
 
 // mergeIntervals 合并有交集的区间
@@ -74,4 +79,69 @@ func MergeVariants(variants []*tracy.Variant) []*tracy.Variant {
 	merged = append(merged, current)
 
 	return merged
+}
+
+func GetRows2MapArray(xlsx *excelize.File, sheet string) (data []map[string]string) {
+	var (
+		rows  = simpleUtil.HandleError(xlsx.GetRows(sheet))
+		title []string
+	)
+	for i := range rows {
+		if i == 0 {
+			title = rows[i]
+			continue
+		}
+		var item = make(map[string]string)
+		for j := range rows[i] {
+			item[title[j]] = rows[i][j]
+		}
+		data = append(data, item)
+	}
+	return
+}
+
+func CreateGeneInfoFromDataArray(data []map[string]string) (geneInfo map[string]*Gene, geneList []string) {
+	geneInfo = make(map[string]*Gene)
+
+	for i := range data {
+		item := data[i]
+		gene := &Gene{
+			ID:     item["基因名称"],
+			Seq:    item["目标序列"],
+			Prefix: item["测序结果名"],
+			Clones: make(map[string]*Clone),
+		}
+		geneInfo[gene.ID] = gene
+		geneList = append(geneList, gene.ID)
+	}
+
+	return
+}
+
+func LoadSangerFromDataArray(geneInfo map[string]*Gene, data []map[string]string) {
+	for i := range data {
+		item := data[i]
+		geneID := item["基因名称"]
+		cloneID := item["基因名称"] + "_C" + item["克隆号"]
+		sangerPath := filepath.Join(*seqDir, item["文件名"])
+		sanger := &Sanger{
+			Path: sangerPath,
+		}
+
+		gene, ok := geneInfo[geneID]
+		if !ok {
+			log.Fatalf("GeneID not exists:[%s]", geneID)
+		}
+		clone, ok := gene.Clones[cloneID]
+		if !ok {
+			clone = &Clone{
+				ID:     cloneID,
+				GeneID: geneID,
+			}
+			gene.Clones[cloneID] = clone
+		}
+		clone.Sangers = append(clone.Sangers, sanger)
+		sanger.Index = len(clone.Sangers)
+	}
+
 }
