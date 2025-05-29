@@ -85,7 +85,7 @@ func main() {
 		simpleUtil.CheckErr(gene.CreateRef())
 
 		for cloneID := range gene.Clones {
-			CloneRun(gene, cloneID)
+			gene.CloneRun(cloneID)
 		}
 	}
 
