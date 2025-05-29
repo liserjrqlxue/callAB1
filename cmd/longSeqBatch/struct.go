@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 	"github.com/xuri/excelize/v2"
@@ -129,6 +130,7 @@ func (genes *Genes) LoadSangerFromGlob(data []map[string]string) {
 }
 
 func (genes *Genes) GeneRun() {
+	var wg sync.WaitGroup
 	simpleUtil.CheckErr(os.MkdirAll(filepath.Join(genes.OutDir, "ref"), 0755))
 
 	for _, geneID := range genes.GeneList {
@@ -137,8 +139,14 @@ func (genes *Genes) GeneRun() {
 		if !ok {
 			log.Fatalf("geneID[%s] not exists", geneID)
 		}
-		gene.Run()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			gene.Run()
+		}()
 	}
+
+	wg.Wait()
 }
 
 func (gene *Genes) CreateResult() {
@@ -312,7 +320,6 @@ func (clone *Clone) SangerRun(sanger *Sanger) {
 	if sanger.Result.Variants != nil {
 		for _, v := range sanger.Result.Variants.Variants {
 			if v.Pos >= sanger.Result.AlignResult.MatchRegion[0] && v.Pos <= sanger.Result.AlignResult.MatchRegion[1] {
-				fmt.Println(v.String())
 				clone.Variants = append(clone.Variants, v)
 			}
 		}
