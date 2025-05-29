@@ -20,6 +20,17 @@ type Genes struct {
 	OutDir   string
 }
 
+func (genes *Genes) LoadInput(excel string) {
+	var xlsx = simpleUtil.HandleError(excelize.OpenFile(excel))
+
+	var sheet1Data = GetRows2MapArray(xlsx, "Sheet1")
+	genes.GetGenes(sheet1Data)
+
+	var sheet2Data = GetRows2MapArray(xlsx, "Sheet2")
+	genes.LoadSangerFromGlob(sheet2Data)
+
+}
+
 func (genes *Genes) GetGenes(data []map[string]string) {
 	for i := range data {
 		item := data[i]

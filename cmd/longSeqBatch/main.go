@@ -4,9 +4,6 @@ import (
 	"flag"
 	"log"
 	"path/filepath"
-
-	"github.com/liserjrqlxue/goUtil/simpleUtil"
-	"github.com/xuri/excelize/v2"
 )
 
 // flag
@@ -64,21 +61,13 @@ var (
 )
 
 func main() {
-	var (
-		xlsx = simpleUtil.HandleError(excelize.OpenFile(*refXlsx))
+	var genes = &Genes{
+		GeneInfo: make(map[string]*Gene),
+		GeneList: []string{},
+		OutDir:   *outDir,
+	}
 
-		genes = &Genes{
-			GeneInfo: make(map[string]*Gene),
-			GeneList: []string{},
-			OutDir:   *outDir,
-		}
-	)
-
-	sheet1Data := GetRows2MapArray(xlsx, "Sheet1")
-	genes.GetGenes(sheet1Data)
-
-	sheet2Data := GetRows2MapArray(xlsx, "Sheet2")
-	genes.LoadSangerFromGlob(sheet2Data)
+	genes.LoadInput(*refXlsx)
 
 	genes.GeneRun()
 
