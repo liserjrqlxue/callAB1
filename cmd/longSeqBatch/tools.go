@@ -4,6 +4,7 @@ import (
 	"callAB1/pkg/tracy"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -103,17 +104,21 @@ func GetRows2MapArray(xlsx *excelize.File, sheet string) (data []map[string]stri
 	return
 }
 
-func CreateGeneInfoFromDataArray(data []map[string]string) (geneInfo map[string]*Gene, geneList []string) {
+func CreateGeneInfoFromDataArray(data []map[string]string, outDir string) (geneInfo map[string]*Gene, geneList []string) {
 	geneInfo = make(map[string]*Gene)
 
 	for i := range data {
 		item := data[i]
+
 		gene := &Gene{
 			ID:     item["基因名称"],
 			Seq:    item["目标序列"],
 			Prefix: item["测序结果名"],
 			Clones: make(map[string]*Clone),
+			OutDir: outDir,
 		}
+		gene.RefPath = filepath.Join(gene.OutDir, "ref", gene.ID+".ref.fa")
+
 		geneInfo[gene.ID] = gene
 		geneList = append(geneList, gene.ID)
 	}
@@ -138,15 +143,17 @@ func LoadSangerFromDataArray(geneInfo map[string]*Gene, data []map[string]string
 		clone, ok := gene.Clones[cloneID]
 		if !ok {
 			clone = &Clone{
-				ID:     cloneID,
-				GeneID: geneID,
+				ID:       cloneID,
+				GeneID:   geneID,
+				CloneDir: filepath.Join(gene.OutDir, geneID, cloneID),
 			}
 			gene.Clones[cloneID] = clone
 		}
 		clone.Sangers = append(clone.Sangers, sanger)
-		sanger.Index = len(clone.Sangers)
-	}
 
+		sanger.Index = len(clone.Sangers)
+		sanger.Prefix = filepath.Join(clone.CloneDir, strconv.Itoa(sanger.Index))
+	}
 }
 
 func CreateResult(geneInfo map[string]*Gene, geneList []string) {
@@ -197,4 +204,64 @@ func CreateResult(geneInfo map[string]*Gene, geneList []string) {
 		}
 	}
 	simpleUtil.CheckErr(resultXlsx.SaveAs(*result))
+}
+
+func SangerRun(sanger *Sanger, clone *Clone, ref string) {
+	result := simpleUtil.HandleError(tracy.RunSingle(*bin, ref, sanger.Path, sanger.Prefix, false))
+	sanger.Result = &result
+	if !result.Pass {
+		clone.Effective = false
+		clone.Status += result.Status
+	}
+	sanger.MatchRegion = result.AlignResult.MatchRegion
+
+	log.Printf("sanger.MatchRegions %+v,clone.MatchRegions %+v", sanger.MatchRegion, clone.MatchRegions)
+	clone.MatchRegions = append(clone.MatchRegions, sanger.MatchRegion)
+	if result.Variants != nil {
+		for _, v := range result.Variants.Variants {
+			if v.Pos >= result.AlignResult.MatchRegion[0] && v.Pos <= result.AlignResult.MatchRegion[1] {
+				fmt.Println(v.String())
+				clone.Variants = append(clone.Variants, v)
+			}
+		}
+	}
+}
+
+func CloneRun(gene *Gene, cloneID string) {
+	log.Printf("loop CeneID:[%s:%s]", gene.ID, cloneID)
+	clone := gene.Clones[cloneID]
+	simpleUtil.CheckErr(os.MkdirAll(clone.CloneDir, 0755))
+
+	clone.Effective = true
+	for _, sanger := range clone.Sangers {
+		log.Printf("loop sanger:[%s:%s:%d:%s]", gene.ID, clone.ID, sanger.Index, sanger.Path)
+		SangerRun(sanger, clone, gene.RefPath)
+	}
+
+	clone.MatchRegions = MergeIntervals(clone.MatchRegions)
+	clone.Variants = MergeVariants(clone.Variants)
+	if clone.Effective {
+		if len(clone.MatchRegions) > 1 {
+			clone.Effective = false
+			clone.Status += "CoverGap"
+		} else if clone.MatchRegions[0][0] > TermTrim+1 || clone.MatchRegions[0][1] < len(gene.Seq)-TermTrim {
+			clone.Effective = false
+			clone.Status += "CoverFail"
+			log.Printf("CoverFail [%d,%d] vs %d[%d,%d]", clone.MatchRegions[0][0], clone.MatchRegions[0][1], len(gene.Seq), TermTrim+1, len(gene.Seq)-TermTrim)
+		}
+	}
+
+	if clone.Effective {
+		gene.EffectiveClones = append(gene.EffectiveClones, clone.ID)
+		if len(clone.Variants) > 0 {
+			gene.MismatchClones++
+			if len(clone.Variants) == 1 {
+				gene.Mismatch1Clones = append(gene.Mismatch1Clones, clone.ID)
+			}
+		} else {
+			gene.CorrectClones = append(gene.CorrectClones, clone.ID)
+		}
+	} else {
+		gene.FailClones++
+	}
 }
