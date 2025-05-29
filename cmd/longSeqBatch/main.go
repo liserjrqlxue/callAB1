@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 	"github.com/xuri/excelize/v2"
@@ -113,8 +112,7 @@ var (
 
 func main() {
 	var (
-		xlsx       = simpleUtil.HandleError(excelize.OpenFile(*refXlsx))
-		resultXlsx = excelize.NewFile()
+		xlsx = simpleUtil.HandleError(excelize.OpenFile(*refXlsx))
 
 		geneInfo map[string]*Gene
 		geneList []string
@@ -192,49 +190,6 @@ func main() {
 			}
 		}
 	}
-	resultTitle := []string{
-		"基因名称",
-		"目标序列",
-		"长度",
-		"测序有效克隆数",
-		"测序失败克隆数",
-		"测序无法匹配克隆数", "有效克隆号",
-		"正确克隆号",
-		"1处错误克隆号",
-	}
-	simpleUtil.CheckErr(
-		resultXlsx.SetSheetRow(
-			"Sheet1",
-			"A1",
-			&resultTitle,
-		),
-	)
-	for i := range geneList {
-		geneID := geneList[i]
-		gene := geneInfo[geneID]
-		simpleUtil.CheckErr(
-			resultXlsx.SetSheetRow(
-				"Sheet1",
-				"A"+strconv.Itoa(i+2),
-				&[]any{
-					gene.ID,
-					gene.Seq,
-					len(gene.Seq),
-					len(gene.EffectiveClones),
-					gene.FailClones,
-					gene.MismatchClones,
-					strings.Join(gene.EffectiveClones, " "),
-					strings.Join(gene.CorrectClones, " "),
-					strings.Join(gene.Mismatch1Clones, " "),
-				},
-			),
-		)
 
-		for cloneID := range gene.Clones {
-			clone := gene.Clones[cloneID]
-			fmt.Printf("%s\t%s\t%t\t%s\n", geneID, cloneID, clone.Effective, clone.Status)
-		}
-	}
-	simpleUtil.CheckErr(resultXlsx.SaveAs(*result))
-
+	CreateResult(geneInfo, geneList)
 }
