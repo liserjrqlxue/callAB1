@@ -144,6 +144,7 @@ func LoadSangerFromDataArray(geneInfo map[string]*Gene, data []map[string]string
 			clone = &Clone{
 				ID:       cloneID,
 				GeneID:   geneID,
+				RefPath:  gene.RefPath,
 				CloneDir: filepath.Join(gene.OutDir, geneID, cloneID),
 			}
 			gene.Clones[cloneID] = clone
@@ -203,25 +204,4 @@ func CreateResult(geneInfo map[string]*Gene, geneList []string) {
 		}
 	}
 	simpleUtil.CheckErr(resultXlsx.SaveAs(*result))
-}
-
-func SangerRun(sanger *Sanger, clone *Clone, ref string) {
-	result := simpleUtil.HandleError(tracy.RunSingle(*bin, ref, sanger.Path, sanger.Prefix, false))
-	sanger.Result = &result
-	if !result.Pass {
-		clone.Effective = false
-		clone.Status += result.Status
-	}
-	sanger.MatchRegion = result.AlignResult.MatchRegion
-
-	log.Printf("sanger.MatchRegions %+v,clone.MatchRegions %+v", sanger.MatchRegion, clone.MatchRegions)
-	clone.MatchRegions = append(clone.MatchRegions, sanger.MatchRegion)
-	if result.Variants != nil {
-		for _, v := range result.Variants.Variants {
-			if v.Pos >= result.AlignResult.MatchRegion[0] && v.Pos <= result.AlignResult.MatchRegion[1] {
-				fmt.Println(v.String())
-				clone.Variants = append(clone.Variants, v)
-			}
-		}
-	}
 }
