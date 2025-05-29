@@ -40,9 +40,9 @@ func (v *Variant) String() string {
 }
 
 type Variants struct {
-	Columns []string        `json:"columns"`
-	Rows    [][]interface{} `json:"rows"`
-	Xranges [][2]int        `json:"xranges"`
+	Columns []string `json:"columns"`
+	Rows    [][]any  `json:"rows"`
+	Xranges [][2]int `json:"xranges"`
 
 	Variants []*Variant `json:"variants"`
 
@@ -96,11 +96,11 @@ func (v Variants) String() string {
 type Result struct {
 	Meta *Meta `json:"meta"`
 
-	Pos   []int `json:"pos"`
-	PeakA []int `json:"peakA"`
-	PeakC []int `json:"peakC"`
-	PeakG []int `json:"peakG"`
-	PeakT []int `json:"peakT"`
+	Pos   []int //`json:"pos"`
+	PeakA []int //`json:"peakA"`
+	PeakC []int //`json:"peakC"`
+	PeakG []int //`json:"peakG"`
+	PeakT []int //`json:"peakT"`
 
 	BasecallPos  []int `json:"basecallPos"`
 	BasecallQual []int `json:"basecallQual"`
@@ -110,7 +110,7 @@ type Result struct {
 	PrimarySeq   string `json:"primarySeq"`
 	SecondarySeq string `json:"secondarySeq"`
 
-	ChartConfig map[string]interface{} `json:"chartConfig"`
+	ChartConfig map[string]any `json:"chartConfig"`
 
 	Ref1chr     string `json:"ref1chr"`
 	Ref1pos     int    `json:"ref1pos"`
@@ -175,11 +175,16 @@ type AlignResult struct {
 	BoundMatch      int     `json:"boundMatch"`
 	BoundMatchRatio float64 `json:"boundMatchRatio"`
 	BoundStatus     []int   `json:"boundStatus"`
+
+	MatchRegion [2]int `json:match_region`
 }
 
 func (ar *AlignResult) CalAlign() {
 	if len(ar.Refalign) != len(ar.Altalign) {
 		panic("len(ar.Refalign)!=len(ar.Altalign)")
+	}
+	if ar.Altalign[0] == '-' || ar.Altalign[len(ar.Altalign)-1] == '=' {
+		panic("ar.Altalign start/stop with -")
 	}
 	var (
 		match     = 0
@@ -190,7 +195,28 @@ func (ar *AlignResult) CalAlign() {
 		// 0:match 1:insert 2:del 3:mismatch
 		currentStatus = 0
 		status        []int
+
+		leftCut  = 0
+		rightCut = 0
 	)
+	alignLength := len(ar.Refalign)
+	for i := range ar.Refalign {
+		refN := ar.Refalign[i]
+		if refN == '-' {
+			leftCut++
+		} else {
+			break
+		}
+	}
+
+	for i := range ar.Refalign {
+		refN := ar.Refalign[alignLength-1-i]
+		if refN == '-' {
+			rightCut++
+		} else {
+			break
+		}
+	}
 
 	for i := range ar.Refalign {
 		refN := ar.Refalign[i]
@@ -216,6 +242,24 @@ func (ar *AlignResult) CalAlign() {
 			altLength++
 		}
 		status = append(status, currentStatus)
+	}
+
+	// match region 0-base
+	// forward:
+	//   refpos                  refLength + refpos-1
+	//   leftCut+1               altLength-rightCut
+	// reverse:
+	//   refLenth + refpos-1     refpos
+	//   leftCut+1               altLength-rightCut
+	fmt.Printf("Match Region: forward:%d:Ref[%d,%d] Alt[%d,%d]\n", ar.Forward, ar.Refpos, ar.Refpos+refLength-1, leftCut+1, altLength-rightCut)
+	leftOffset := max(0, Trim-leftCut)
+	rightOffset := max(0, altLength-rightCut-MaxLength)
+	if ar.Forward == 1 {
+		fmt.Printf("Match Region: forward:%d:Ref[%d,%d] Alt[%d,%d]\n", ar.Forward, ar.Refpos+leftOffset, ar.Refpos+refLength-1-rightOffset, leftCut+1+leftOffset, altLength-rightCut-rightOffset)
+		ar.MatchRegion = [2]int{ar.Refpos + leftOffset, ar.Refpos + refLength - 1 - rightOffset}
+	} else {
+		fmt.Printf("Match Region: forward:%d:Ref[%d,%d] Alt[%d,%d]\n", ar.Forward, ar.Refpos+rightOffset, ar.Refpos+refLength-1-leftOffset, leftCut+1+leftOffset, altLength-rightCut-rightOffset)
+		ar.MatchRegion = [2]int{ar.Refpos + rightOffset, ar.Refpos + refLength - 1 - leftOffset}
 	}
 	slog.Debug("CalAlign", "match", match, "refLength", refLength, "altLength", altLength, "altRatio", float64(match)/float64(altLength), "status", status)
 
