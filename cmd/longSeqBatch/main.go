@@ -80,15 +80,7 @@ func main() {
 
 	simpleUtil.CheckErr(os.MkdirAll(filepath.Join(*outDir, "ref"), 0755))
 
-	for _, geneID := range geneList {
-		log.Printf("loop GeneID:[%s]", geneID)
-		gene := geneInfo[geneID]
-		simpleUtil.CheckErr(gene.CreateRef())
-
-		for cloneID := range gene.Clones {
-			gene.CloneRun(cloneID)
-		}
-	}
+	RunGenes(geneInfo, geneList)
 
 	CreateResult(geneInfo, geneList)
 }

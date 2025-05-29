@@ -19,11 +19,20 @@ type Gene struct {
 	Clones map[string]*Clone
 
 	// stats
+
 	FailClones      int
 	MismatchClones  int
 	EffectiveClones []string
 	Mismatch1Clones []string
 	CorrectClones   []string
+}
+
+func (gene *Gene) Run() {
+	simpleUtil.CheckErr(gene.CreateRef())
+
+	for cloneID := range gene.Clones {
+		gene.CloneRun(cloneID)
+	}
 }
 
 func (gene *Gene) CreateRef() error {

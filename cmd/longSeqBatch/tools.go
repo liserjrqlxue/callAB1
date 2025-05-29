@@ -205,6 +205,17 @@ func LoadSangerFromDataArray(geneInfo map[string]*Gene, data []map[string]string
 	}
 }
 
+func RunGenes(geneInfo map[string]*Gene, geneList []string) {
+	for _, geneID := range geneList {
+		log.Printf("loop GeneID:[%s]", geneID)
+		gene, ok := geneInfo[geneID]
+		if !ok {
+			log.Fatalf("geneID[%s] not exists", geneID)
+		}
+		gene.Run()
+	}
+}
+
 func CreateResult(geneInfo map[string]*Gene, geneList []string) {
 	var resultXlsx = excelize.NewFile()
 
