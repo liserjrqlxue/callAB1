@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -110,9 +111,9 @@ func CreateGeneInfoFromDataArray(data []map[string]string, outDir string) (geneI
 		item := data[i]
 
 		gene := &Gene{
-			ID:     item["基因名称"],
-			Seq:    item["目标序列"],
-			Prefix: item["测序结果名"],
+			ID:  item["基因名称"],
+			Seq: item["目标序列"],
+			// Prefix: item["测序结果名"],
 			Clones: make(map[string]*Clone),
 			OutDir: outDir,
 		}
@@ -123,6 +124,53 @@ func CreateGeneInfoFromDataArray(data []map[string]string, outDir string) (geneI
 	}
 
 	return
+}
+
+func LoadSangerFromGlob(geneInfo map[string]*Gene, data []map[string]string) {
+	for i := range data {
+		item := data[i]
+
+		geneID := item["基因名称"]
+		gene, ok := geneInfo[geneID]
+		if !ok {
+			log.Fatalf("GeneID not exists:[%s]", geneID)
+		}
+
+		prefix := item["测序结果名"]
+		reg := regexp.MustCompile(prefix + `-(\d+)`)
+		pattern := filepath.Join(*seqDir, prefix+"*.ab1")
+		sangerFiles, err := filepath.Glob(pattern)
+		if err != nil {
+			log.Fatalf("can not glob ab1 file:[%s][%v]", pattern, err)
+		}
+
+		for _, file := range sangerFiles {
+			sanger := &Sanger{
+				Path: file,
+			}
+			baseName := filepath.Base(file)
+			match := reg.FindStringSubmatch(baseName)
+			if len(match) < 2 {
+				log.Fatalf("can not parse cloneID:[reg:%s][name:%s][match:%+v][%s]", reg, baseName, match, file)
+			}
+			cloneID := item["基因名称"] + "_C" + match[1]
+			clone, ok := gene.Clones[cloneID]
+			if !ok {
+				clone = &Clone{
+					ID:         cloneID,
+					GeneID:     geneID,
+					RefPath:    gene.RefPath,
+					GeneLength: len(gene.Seq),
+					CloneDir:   filepath.Join(gene.OutDir, geneID, cloneID),
+				}
+				gene.Clones[cloneID] = clone
+			}
+			clone.Sangers = append(clone.Sangers, sanger)
+
+			sanger.Index = len(clone.Sangers)
+			sanger.Prefix = filepath.Join(clone.CloneDir, strconv.Itoa(sanger.Index))
+		}
+	}
 }
 
 func LoadSangerFromDataArray(geneInfo map[string]*Gene, data []map[string]string) {
@@ -204,5 +252,5 @@ func CreateResult(geneInfo map[string]*Gene, geneList []string) {
 			fmt.Printf("%s\t%s\t%t\t%s\n", geneID, cloneID, clone.Effective, clone.Status)
 		}
 	}
-	simpleUtil.CheckErr(resultXlsx.SaveAs(*result))
+	simpleUtil.CheckErr(resultXlsx.SaveAs(*result), *result)
 }

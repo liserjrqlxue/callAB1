@@ -75,7 +75,8 @@ func main() {
 	geneInfo, geneList = CreateGeneInfoFromDataArray(sheet1Data, *outDir)
 
 	sheet2Data := GetRows2MapArray(xlsx, "Sheet2")
-	LoadSangerFromDataArray(geneInfo, sheet2Data)
+	// LoadSangerFromDataArray(geneInfo, sheet2Data)
+	LoadSangerFromGlob(geneInfo, sheet2Data)
 
 	simpleUtil.CheckErr(os.MkdirAll(filepath.Join(*outDir, "ref"), 0755))
 
