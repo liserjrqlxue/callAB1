@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"os"
 	"path/filepath"
 
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
@@ -68,19 +67,20 @@ func main() {
 	var (
 		xlsx = simpleUtil.HandleError(excelize.OpenFile(*refXlsx))
 
-		geneInfo map[string]*Gene
-		geneList []string
+		genes = &Genes{
+			GeneInfo: make(map[string]*Gene),
+			GeneList: []string{},
+			OutDir:   *outDir,
+		}
 	)
+
 	sheet1Data := GetRows2MapArray(xlsx, "Sheet1")
-	geneInfo, geneList = CreateGeneInfoFromDataArray(sheet1Data, *outDir)
+	genes.GetGenes(sheet1Data)
 
 	sheet2Data := GetRows2MapArray(xlsx, "Sheet2")
-	// LoadSangerFromDataArray(geneInfo, sheet2Data)
-	LoadSangerFromGlob(geneInfo, sheet2Data)
+	genes.LoadSangerFromGlob(sheet2Data)
 
-	simpleUtil.CheckErr(os.MkdirAll(filepath.Join(*outDir, "ref"), 0755))
+	genes.GeneRun()
 
-	RunGenes(geneInfo, geneList)
-
-	CreateResult(geneInfo, geneList)
+	genes.CreateResult()
 }

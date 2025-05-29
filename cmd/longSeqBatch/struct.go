@@ -5,9 +5,180 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
+	"github.com/xuri/excelize/v2"
 )
+
+type Genes struct {
+	GeneInfo map[string]*Gene
+	GeneList []string
+	OutDir   string
+}
+
+func (genes *Genes) GetGenes(data []map[string]string) {
+	for i := range data {
+		item := data[i]
+
+		gene := &Gene{
+			ID:  item["基因名称"],
+			Seq: item["目标序列"],
+			// Prefix: item["测序结果名"],
+			Clones: make(map[string]*Clone),
+			OutDir: genes.OutDir,
+		}
+		gene.RefPath = filepath.Join(gene.OutDir, "ref", gene.ID+".ref.fa")
+
+		genes.GeneInfo[gene.ID] = gene
+		genes.GeneList = append(genes.GeneList, gene.ID)
+	}
+}
+
+func (genes *Genes) LoadSangerFromDataArray(data []map[string]string) {
+	for i := range data {
+		item := data[i]
+		geneID := item["基因名称"]
+		cloneID := item["基因名称"] + "_C" + item["克隆号"]
+		sangerPath := filepath.Join(*seqDir, item["文件名"])
+		sanger := &Sanger{
+			Path: sangerPath,
+		}
+
+		gene, ok := genes.GeneInfo[geneID]
+		if !ok {
+			log.Fatalf("GeneID not exists:[%s]", geneID)
+		}
+		clone, ok := gene.Clones[cloneID]
+		if !ok {
+			clone = &Clone{
+				ID:         cloneID,
+				GeneID:     geneID,
+				RefPath:    gene.RefPath,
+				GeneLength: len(gene.Seq),
+				CloneDir:   filepath.Join(gene.OutDir, geneID, cloneID),
+			}
+			gene.Clones[cloneID] = clone
+		}
+		clone.Sangers = append(clone.Sangers, sanger)
+
+		sanger.Index = len(clone.Sangers)
+		sanger.Prefix = filepath.Join(clone.CloneDir, strconv.Itoa(sanger.Index))
+	}
+}
+
+func (genes *Genes) LoadSangerFromGlob(data []map[string]string) {
+	for i := range data {
+		item := data[i]
+
+		geneID := item["基因名称"]
+		gene, ok := genes.GeneInfo[geneID]
+		if !ok {
+			log.Fatalf("GeneID not exists:[%s]", geneID)
+		}
+
+		prefix := item["测序结果名"]
+		reg := regexp.MustCompile(prefix + `-(\d+)`)
+		pattern := filepath.Join(*seqDir, prefix+"*.ab1")
+		sangerFiles, err := filepath.Glob(pattern)
+		if err != nil {
+			log.Fatalf("can not glob ab1 file:[%s][%v]", pattern, err)
+		}
+
+		for _, file := range sangerFiles {
+			sanger := &Sanger{
+				Path: file,
+			}
+			baseName := filepath.Base(file)
+			match := reg.FindStringSubmatch(baseName)
+			if len(match) < 2 {
+				log.Fatalf("can not parse cloneID:[reg:%s][name:%s][match:%+v][%s]", reg, baseName, match, file)
+			}
+			cloneID := item["基因名称"] + "_C" + match[1]
+			clone, ok := gene.Clones[cloneID]
+			if !ok {
+				clone = &Clone{
+					ID:         cloneID,
+					GeneID:     geneID,
+					RefPath:    gene.RefPath,
+					GeneLength: len(gene.Seq),
+					CloneDir:   filepath.Join(gene.OutDir, geneID, cloneID),
+				}
+				gene.Clones[cloneID] = clone
+			}
+			clone.Sangers = append(clone.Sangers, sanger)
+
+			sanger.Index = len(clone.Sangers)
+			sanger.Prefix = filepath.Join(clone.CloneDir, strconv.Itoa(sanger.Index))
+		}
+	}
+}
+
+func (genes *Genes) GeneRun() {
+	simpleUtil.CheckErr(os.MkdirAll(filepath.Join(genes.OutDir, "ref"), 0755))
+
+	for _, geneID := range genes.GeneList {
+		log.Printf("loop GeneID:[%s]", geneID)
+		gene, ok := genes.GeneInfo[geneID]
+		if !ok {
+			log.Fatalf("geneID[%s] not exists", geneID)
+		}
+		gene.Run()
+	}
+}
+
+func (gene *Genes) CreateResult() {
+	var xlsx = excelize.NewFile()
+
+	title := []string{
+		"基因名称",
+		"目标序列",
+		"长度",
+		"测序有效克隆数",
+		"测序失败克隆数",
+		"测序无法匹配克隆数", "有效克隆号",
+		"正确克隆号",
+		"1处错误克隆号",
+	}
+	simpleUtil.CheckErr(
+		xlsx.SetSheetRow(
+			"Sheet1",
+			"A1",
+			&title,
+		),
+	)
+
+	for i := range gene.GeneList {
+		geneID := gene.GeneList[i]
+		gene := gene.GeneInfo[geneID]
+		simpleUtil.CheckErr(
+			xlsx.SetSheetRow(
+				"Sheet1",
+				"A"+strconv.Itoa(i+2),
+				&[]any{
+					gene.ID,
+					gene.Seq,
+					len(gene.Seq),
+					len(gene.EffectiveClones),
+					gene.FailClones,
+					gene.MismatchClones,
+					strings.Join(gene.EffectiveClones, " "),
+					strings.Join(gene.CorrectClones, " "),
+					strings.Join(gene.Mismatch1Clones, " "),
+				},
+			),
+		)
+
+		for cloneID := range gene.Clones {
+			clone := gene.Clones[cloneID]
+			fmt.Printf("%s\t%s\t%t\t%s\n", geneID, cloneID, clone.Effective, clone.Status)
+		}
+	}
+	simpleUtil.CheckErr(xlsx.SaveAs(*result), *result)
+}
 
 type Gene struct {
 	ID      string
