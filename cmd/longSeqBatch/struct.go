@@ -68,7 +68,10 @@ type Clone struct {
 	GeneID   string
 	RefPath  string
 	CloneDir string
-	Sangers  []*Sanger
+
+	GeneLength int
+
+	Sangers []*Sanger
 
 	Variants     []*tracy.Variant
 	MatchRegions [][2]int
@@ -90,10 +93,10 @@ func (clone *Clone) Run() {
 		if len(clone.MatchRegions) > 1 {
 			clone.Effective = false
 			clone.Status += "CoverGap"
-		} else if clone.MatchRegions[0][0] > TermTrim+1 || clone.MatchRegions[0][1] < len(gene.Seq)-TermTrim {
+		} else if clone.MatchRegions[0][0] > TermTrim+1 || clone.MatchRegions[0][1] < clone.GeneLength-TermTrim {
 			clone.Effective = false
 			clone.Status += "CoverFail"
-			log.Printf("CoverFail [%d,%d] vs %d[%d,%d]", clone.MatchRegions[0][0], clone.MatchRegions[0][1], len(gene.Seq), TermTrim+1, len(gene.Seq)-TermTrim)
+			log.Printf("CoverFail [%d,%d] vs %d[%d,%d]", clone.MatchRegions[0][0], clone.MatchRegions[0][1], clone.GeneLength, TermTrim+1, clone.GeneLength-TermTrim)
 		}
 	}
 }

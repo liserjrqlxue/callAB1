@@ -142,10 +142,11 @@ func LoadSangerFromDataArray(geneInfo map[string]*Gene, data []map[string]string
 		clone, ok := gene.Clones[cloneID]
 		if !ok {
 			clone = &Clone{
-				ID:       cloneID,
-				GeneID:   geneID,
-				RefPath:  gene.RefPath,
-				CloneDir: filepath.Join(gene.OutDir, geneID, cloneID),
+				ID:         cloneID,
+				GeneID:     geneID,
+				RefPath:    gene.RefPath,
+				GeneLength: len(gene.Seq),
+				CloneDir:   filepath.Join(gene.OutDir, geneID, cloneID),
 			}
 			gene.Clones[cloneID] = clone
 		}
