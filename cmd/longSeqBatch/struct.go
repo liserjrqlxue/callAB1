@@ -109,7 +109,7 @@ func (genes *Genes) LoadSangerFromGlob(data []map[string]string) {
 			if len(match) < 2 {
 				log.Fatalf("can not parse cloneID:[reg:%s][name:%s][match:%+v][%s]", reg, baseName, match, file)
 			}
-			cloneID := item["基因名称"] + "_C" + match[1]
+			cloneID := prefix + "-" + match[1]
 			clone, ok := gene.Clones[cloneID]
 			if !ok {
 				clone = &Clone{
