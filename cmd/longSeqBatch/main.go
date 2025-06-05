@@ -4,6 +4,8 @@ import (
 	"flag"
 	"log"
 	"path/filepath"
+
+	"github.com/liserjrqlxue/version"
 )
 
 // flag
@@ -42,10 +44,11 @@ var (
 )
 
 func init() {
+	version.LogVersion()
 	flag.Parse()
 	if *inputDir == "" || *result == "" {
 		flag.Usage()
-		log.Fatal("-i/-o required")
+		log.Fatal("-i/-o required!")
 	}
 	if *outDir == "" {
 		*outDir = *inputDir
