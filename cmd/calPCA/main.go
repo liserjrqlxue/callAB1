@@ -41,7 +41,7 @@ var (
 	)
 	sangerDir = flag.String(
 		"s",
-		"",
+		"测序目录",
 		"dir of sanger",
 	)
 	bin = flag.String(
@@ -123,6 +123,9 @@ func main() {
 		for j, cell := range row {
 			switch title[j] {
 			case "片段名称":
+				if cell == "" {
+					log.Fatalf("分段序列 片段名称(%d,%d) 为空", i+1, j+1)
+				}
 				seq.ID = cell
 				seq.RefID = cell[:len(cell)-1]
 			case "片段序列":
