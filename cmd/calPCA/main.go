@@ -18,6 +18,7 @@ import (
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 	"github.com/liserjrqlxue/goUtil/stringsUtil"
 	"github.com/liserjrqlxue/goUtil/textUtil"
+	"github.com/liserjrqlxue/version"
 	"github.com/samber/lo"
 	"github.com/xuri/excelize/v2"
 )
@@ -41,7 +42,7 @@ var (
 	)
 	sangerDir = flag.String(
 		"s",
-		"测序目录",
+		"",
 		"dir of sanger",
 	)
 	bin = flag.String(
@@ -98,10 +99,23 @@ func (s *Seq) CreateFasta(prefix string) {
 }
 
 func main() {
+	version.LogVersion()
 	flag.Parse()
-	if *input == "" || *outputDir == "" || *sangerDir == "" {
+	if *outputDir == "" {
 		flag.PrintDefaults()
-		log.Fatal("input is required")
+		log.Fatal("-o is required")
+	}
+	if *input == "" {
+		*input = filepath.Join(*outputDir, "自合.xlsx")
+	}
+	if *inputOrder == "" {
+		*inputOrder = filepath.Join(*outputDir, "引物订购单_BOM.xlsx")
+	}
+	if *renameTxt == "" {
+		*renameTxt = filepath.Join(*outputDir, "rename.txt")
+	}
+	if *sangerDir == "" {
+		*renameTxt = filepath.Join(*outputDir, "ab1")
 	}
 
 	if *cloneCount > 0 {
