@@ -47,6 +47,7 @@ type Variants struct {
 	Variants []*Variant `json:"variants"`
 
 	HetCount int
+	HomCount int
 }
 
 func (v *Variants) CalVariants() {
@@ -77,6 +78,8 @@ func (v *Variants) CalVariants() {
 
 		if varint.Genotype == "het." {
 			v.HetCount++
+		} else {
+			v.HomCount++
 		}
 
 		if varint.Type == "Complex" || (varint.Type == "SNV" && len(varint.Alt) >= SVThreshold) || len(varint.Alt)-len(varint.Ref) >= SVThreshold || len(varint.Ref)-len(varint.Alt) >= SVThreshold {
