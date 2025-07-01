@@ -75,6 +75,10 @@ func RunTracyBatchCy0130(id, prefix, bin string) map[string][2]*tracy.Result {
 	files := simpleUtil.HandleError(
 		filepath.Glob(fmt.Sprintf("%s/%s*.ab1", *sangerDir, id)),
 	)
+	files2 := simpleUtil.HandleError(
+		filepath.Glob(fmt.Sprintf("%s/*/%s*.ab1", *sangerDir, id)),
+	)
+	files = append(files, files2...)
 
 	for _, path := range files {
 		RunTracyCY0130(id, prefix, bin, path, result)
@@ -335,30 +339,38 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		geoMeanAccPercent = 1.0                 // 平均准确率
 		sangerSet         []string
 
-		vSet           = make(map[string]bool)    // 变异
-		vPosRatio      = make(map[string]float64) // 变异位置
-		vPosHightRatio = make(map[string]float64) // 高频变异位置
-		vTypeCounts    = make(map[string]int)
-		vTypePercent   = make(map[string]float64)
-		selectClones   = make(map[string]bool) // 正确克隆
+		vSet            = make(map[string]bool)    // 变异
+		vPosRatio       = make(map[string]float64) // 变异位置
+		vPosHightRatio  = make(map[string]float64) // 高频变异位置
+		vTypeCounts     = make(map[string]int)
+		vTypePercent    = make(map[string]float64)
+		selectClones    = make(map[string]bool) // 正确克隆
+		selectHetClones = make(map[string]bool) // Het正确克隆
 	)
 
 	for sangerPairIndex, pairResult := range result {
 		if Record1Result(seq, result, out, seq.ID, sangerPairIndex, 0, vSet) {
 			n++
 			variantCount := 0
+			variantHetCount := 0
 			sangerSet = append(sangerSet, sangerPairIndex)
 			for _, r := range pairResult {
 				if r != nil && r.Variants != nil {
 					for _, v := range r.Variants.Variants {
 						if v.Pos >= seq.Start && v.Pos <= seq.End {
 							variantCount++
+							if v.Genotype == "het." {
+								variantHetCount++
+							}
 						}
 					}
 				}
 			}
-			if variantCount == 0 {
+			switch variantCount {
+			case 0:
 				selectClones[sangerPairIndex] = true
+			case variantHetCount: // only het
+				selectHetClones[sangerPairIndex] = true
 			}
 		} else {
 			failN++
@@ -394,61 +406,47 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 	rcIDs := strings.Join(rightCloneIDs, "、")
 	rcIDs1 := strings.Join(rightCloneIDs[:min(2, len(rightCloneIDs))], "、")
 	rcIDs2 := strings.Join(rightCloneIDs[min(2, len(rightCloneIDs)):], "、")
+	// Het正确克隆
+	rightHetCloneIDs := lo.Keys(selectHetClones)
+	rcHetIDs := strings.Join(rightHetCloneIDs, "、")
+
+	vErrPercent := 0.0
+	vAccPercent := 0.0
 	if n > 0 {
-		vErrPercent := float64(len(vSet)*100) / float64(ln)
-		vAccPercent := 100.0 - vErrPercent
-		resultLine = []any{
-			seq.ID,
-			seq.Start, seq.End,
-			length,
-			n,
-			failN,
-			len(selectClones),
-			len(vPosRatio),
-			len(vSet),
-			len(vPosHightRatio),
-			vTypeCounts["SNV"],
-			vTypeCounts["Insertion"],
-			vTypeCounts["Deletion"],
-			vTypeCounts["SV"],
-			vTypePercent["SNV"],
-			vTypePercent["Insertion"],
-			vTypePercent["Deletion"],
-			vTypePercent["SV"],
-			vErrPercent,
-			vAccPercent,
-			yeildPercent,
-			geoMeanAccPercent,
-			sangerSet,
-			rcIDs,
-			rcIDs1,
-			rcIDs2,
-		}
-	} else {
-		resultLine = []any{
-			seq.ID,
-			seq.Start, seq.End,
-			length,
-			n,
-			failN,
-			len(selectClones),
-			len(vPosRatio),
-			len(vSet),
-			len(vPosHightRatio),
-			vTypeCounts["SNV"],
-			vTypeCounts["Insertion"],
-			vTypeCounts["Deletion"],
-			vTypeCounts["SV"],
-			vTypePercent["SNV"],
-			vTypePercent["Insertion"],
-			vTypePercent["Deletion"],
-			vTypePercent["SV"],
-			0.0, 0.0, 0.0, 0.0,
-			sangerSet,
-			rcIDs,
-			rcIDs1,
-			rcIDs2,
-		}
+		vErrPercent = float64(len(vSet)*100) / float64(ln)
+		vAccPercent = 100.0 - vErrPercent
+	} else { // no valid clone
+		geoMeanAccPercent = 0.0
+		yeildPercent = 0.0
+	}
+	resultLine = []any{
+		seq.ID,
+		seq.Start, seq.End,
+		length,
+		n,
+		failN,
+		len(selectClones),
+		len(selectHetClones),
+		len(vPosRatio),
+		len(vSet),
+		len(vPosHightRatio),
+		vTypeCounts["SNV"],
+		vTypeCounts["Insertion"],
+		vTypeCounts["Deletion"],
+		vTypeCounts["SV"],
+		vTypePercent["SNV"],
+		vTypePercent["Insertion"],
+		vTypePercent["Deletion"],
+		vTypePercent["SV"],
+		vErrPercent,
+		vAccPercent,
+		yeildPercent,
+		geoMeanAccPercent,
+		sangerSet,
+		rcIDs,
+		rcIDs1,
+		rcHetIDs,
+		rcIDs2,
 	}
 	// 写入 result
 	resultFormat := "%s\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%v\t%v\n"
