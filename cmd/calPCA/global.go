@@ -95,4 +95,5 @@ var (
 	}
 
 	CloneCountLimit = 32
+	MaxQual         = 45
 )

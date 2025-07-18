@@ -60,6 +60,11 @@ var (
 		0,
 		"clone count",
 	)
+	maxQual = flag.Int(
+		"q",
+		45,
+		"filter qual < MaxQual",
+	)
 )
 
 type Seq struct {
@@ -121,6 +126,8 @@ func main() {
 	if *cloneCount > 0 {
 		CloneCountLimit = *cloneCount
 	}
+
+	MaxQual = *maxQual
 
 	var inputXlsx = simpleUtil.HandleError(excelize.OpenFile(*input))
 

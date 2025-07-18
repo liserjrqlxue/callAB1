@@ -15,6 +15,7 @@ import (
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
+	"github.com/liserjrqlxue/goUtil/stringsUtil"
 	"github.com/samber/lo"
 	"github.com/xuri/excelize/v2"
 )
@@ -102,8 +103,10 @@ func RecordVariant(v *tracy.Variant, out *os.File, index, id, sangerPairIndex st
 			v,
 		)
 		if pass {
-			key := fmt.Sprintf("%s-%d-%s-%s-%s", changeID, v.Pos, v.Ref, v.Alt, v.Type)
-			variantSet[key] = true
+			if v.Qual >= MaxQual {
+				key := fmt.Sprintf("%s-%d-%s-%s-%s", changeID, v.Pos, v.Ref, v.Alt, v.Type)
+				variantSet[key] = true
+			}
 		}
 	}
 }
@@ -150,7 +153,7 @@ func Record1Result(primer *Seq, result map[string][2]*tracy.Result, out *os.File
 	return
 }
 
-func RecordPrimer(primer *Seq, result map[string][2]*tracy.Result, out *os.File, index string, offset int) (resultLine []interface{}) {
+func RecordPrimer(primer *Seq, result map[string][2]*tracy.Result, out *os.File, index string, offset int) (resultLine []any) {
 	var (
 		length            = primer.End - primer.Start // 长度
 		n                 = 0                         // sanger 个数
@@ -272,25 +275,20 @@ func RecordSeqPrimer(seq *Seq, result map[string][2]*tracy.Result, prefix string
 type PosScore struct {
 	Pos int
 	Sum float64
-	Key string
+	// Key string
 }
 
-func GetHightRatio(vPosRatio map[string]float64, k, n int) map[string]float64 {
+func GetHightRatio(vPosRatio map[int]float64, k, n int) map[int]float64 {
 	// 第一步：构建每个位置的窗口总和
 	var scores []PosScore
-	for posStr := range vPosRatio {
-		pos, err := strconv.Atoi(posStr)
-		if err != nil {
-			continue
-		}
+	for pos := range vPosRatio {
 		var sum float64 = 0
 		for i := pos - k; i <= pos+k; i++ {
-			key := strconv.Itoa(i)
-			if val, ok := vPosRatio[key]; ok {
+			if val, ok := vPosRatio[i]; ok {
 				sum += val
 			}
 		}
-		scores = append(scores, PosScore{Pos: pos, Sum: sum, Key: posStr})
+		scores = append(scores, PosScore{Pos: pos, Sum: sum})
 	}
 
 	// 第二步：按窗口总和降序排序
@@ -300,7 +298,7 @@ func GetHightRatio(vPosRatio map[string]float64, k, n int) map[string]float64 {
 
 	// 第三步：选择非重叠窗口
 	used := make(map[int]bool)
-	vPosHightRatio := make(map[string]float64)
+	vPosHightRatio := make(map[int]float64)
 
 	for _, score := range scores {
 		overlap := false
@@ -315,7 +313,7 @@ func GetHightRatio(vPosRatio map[string]float64, k, n int) map[string]float64 {
 		}
 		if score.Sum >= 4 || score.Sum/float64(n) >= 0.6 {
 			// 标记中心位置
-			vPosHightRatio[score.Key] = vPosRatio[score.Key]
+			vPosHightRatio[score.Pos] = vPosRatio[score.Pos]
 			// 标记这个窗口的所有位置为已使用
 			for i := score.Pos - k; i <= score.Pos+k; i++ {
 				used[i] = true
@@ -326,8 +324,8 @@ func GetHightRatio(vPosRatio map[string]float64, k, n int) map[string]float64 {
 	return vPosHightRatio
 }
 
-func GetDeletionHightRatio(vPosDeletionRatio map[string]float64, n int) map[string]float64 {
-	var vPosDeletionHightRatio = make(map[string]float64)
+func GetDeletionHightRatio(vPosDeletionRatio map[int]float64, n int) map[int]float64 {
+	var vPosDeletionHightRatio = make(map[int]float64)
 	for pos := range vPosDeletionRatio {
 		ratio := vPosDeletionRatio[pos] / float64(n)
 		if ratio >= 0.8 {
@@ -350,11 +348,11 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		geoMeanAccPercent = 1.0                 // 平均准确率
 		sangerSet         []string
 
-		vSet                   = make(map[string]bool)    // 变异
-		vPosRatio              = make(map[string]float64) // 变异位置
-		vPosHightRatio         = make(map[string]float64) // 高频变异位置
-		vPosDeletionRatio      = make(map[string]float64) // 缺失变异位置
-		vPosDeletionHightRatio = make(map[string]float64) // 高频缺失
+		vSet                   = make(map[string]bool) // 变异
+		vPosRatio              = make(map[int]float64) // 变异位置
+		vPosHightRatio         = make(map[int]float64) // 高频变异位置
+		vPosDeletionRatio      = make(map[int]float64) // 缺失变异位置
+		vPosDeletionHightRatio = make(map[int]float64) // 高频缺失
 		vTypeCounts            = make(map[string]int)
 		vTypePercent           = make(map[string]float64)
 		selectClones           = make(map[string]bool) // 正确克隆
@@ -395,10 +393,18 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 	// changeID, v.Pos, v.Ref, v.Alt, v.Type
 	for key := range vSet {
 		spt := strings.Split(key, "-")
-		vPosRatio[spt[1]]++
-		vTypeCounts[spt[4]]++
+		pos := stringsUtil.Atoi(spt[1])
+		ref := spt[2]
+		alt := spt[3]
+		vType := spt[4]
+		vPosRatio[pos]++
+		vTypeCounts[vType]++
 		if spt[4] == "Deletion" {
-			vPosDeletionRatio[spt[1]]++
+			for k := range ref {
+				if k >= len(alt) {
+					vPosDeletionRatio[pos+k]++
+				}
+			}
 		}
 	}
 
@@ -524,8 +530,14 @@ func GetTracyStatusLines(id string, result map[string][2]*tracy.Result) (data []
 			variantCount := 0
 			hetCount := 0
 			if result.Variants != nil {
-				variantCount = len(result.Variants.Variants)
-				hetCount = result.Variants.HetCount
+				for _, v := range result.Variants.Variants {
+					if v.Qual >= MaxQual {
+						variantCount++
+					}
+					if v.Genotype == "het." {
+						hetCount++
+					}
+				}
 			}
 			row := []any{
 				id, sangerPairIndex, sangerIndex,
