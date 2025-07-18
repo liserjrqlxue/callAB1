@@ -62,7 +62,7 @@ var (
 	)
 	maxQual = flag.Int(
 		"q",
-		45,
+		0,
 		"filter qual < MaxQual",
 	)
 )
