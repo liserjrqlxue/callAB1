@@ -326,6 +326,17 @@ func GetHightRatio(vPosRatio map[string]float64, k, n int) map[string]float64 {
 	return vPosHightRatio
 }
 
+func GetDeletionHightRatio(vPosDeletionRatio map[string]float64, n int) map[string]float64 {
+	var vPosDeletionHightRatio = make(map[string]float64)
+	for pos := range vPosDeletionRatio {
+		ratio := vPosDeletionRatio[pos] / float64(n)
+		if ratio >= 0.8 {
+			vPosDeletionHightRatio[pos] = ratio
+		}
+	}
+	return vPosDeletionHightRatio
+}
+
 func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLine []any) {
 	out := osUtil.Create(prefix + ".seq.result.txt")
 	defer simpleUtil.DeferClose(out)
@@ -339,13 +350,15 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		geoMeanAccPercent = 1.0                 // 平均准确率
 		sangerSet         []string
 
-		vSet            = make(map[string]bool)    // 变异
-		vPosRatio       = make(map[string]float64) // 变异位置
-		vPosHightRatio  = make(map[string]float64) // 高频变异位置
-		vTypeCounts     = make(map[string]int)
-		vTypePercent    = make(map[string]float64)
-		selectClones    = make(map[string]bool) // 正确克隆
-		selectHetClones = make(map[string]bool) // Het正确克隆
+		vSet                   = make(map[string]bool)    // 变异
+		vPosRatio              = make(map[string]float64) // 变异位置
+		vPosHightRatio         = make(map[string]float64) // 高频变异位置
+		vPosDeletionRatio      = make(map[string]float64) // 缺失变异位置
+		vPosDeletionHightRatio = make(map[string]float64) // 高频缺失
+		vTypeCounts            = make(map[string]int)
+		vTypePercent           = make(map[string]float64)
+		selectClones           = make(map[string]bool) // 正确克隆
+		selectHetClones        = make(map[string]bool) // Het正确克隆
 	)
 
 	for sangerPairIndex, pairResult := range result {
@@ -379,13 +392,18 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 	ln = length * n
 
 	// 按照位置统计
+	// changeID, v.Pos, v.Ref, v.Alt, v.Type
 	for key := range vSet {
 		spt := strings.Split(key, "-")
 		vPosRatio[spt[1]]++
 		vTypeCounts[spt[4]]++
+		if spt[4] == "Deletion" {
+			vPosDeletionRatio[spt[1]]++
+		}
 	}
 
 	vPosHightRatio = GetHightRatio(vPosRatio, 1, n)
+	vPosDeletionHightRatio = GetDeletionHightRatio(vPosDeletionRatio, n)
 	// 计算收率
 	for pos := range vPosRatio {
 		vPosRatio[pos] /= float64(n)
@@ -430,6 +448,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		len(vPosRatio),
 		len(vSet),
 		len(vPosHightRatio),
+		len(vPosDeletionHightRatio),
 		vTypeCounts["SNV"],
 		vTypeCounts["Insertion"],
 		vTypeCounts["Deletion"],
