@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -443,6 +444,33 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		geoMeanAccPercent = 0.0
 		yeildPercent = 0.0
 	}
+	id1 := seq.ID
+	id2 := strings.Replace(id1, "-", "_", 1)
+	reg1 := regexp.MustCompile(fmt.Sprintf("^%s-(\\d+)", id1))
+	reg2 := regexp.MustCompile(fmt.Sprintf("^%s-(\\d+)", id2))
+	if len(rightCloneIDs) > 0 {
+		if reg1.MatchString(rightCloneIDs[0]) {
+			for _, id := range rightCloneIDs {
+				m := reg1.FindStringSubmatch(id)
+				if m == nil {
+					log.Fatalf("can not parse clone:[%s]vs[%s]", id, seq.ID)
+				}
+				seq.rIDs = append(seq.rIDs, m[1])
+			}
+			rcIDs = id1 + "-" + strings.Join(seq.rIDs, "、")
+		}
+		if reg2.MatchString(rightCloneIDs[0]) {
+			for _, id := range rightCloneIDs {
+				m := reg2.FindStringSubmatch(id)
+				if m == nil {
+					log.Fatalf("can not parse clone:[%s]vs[%s]", id, seq.ID)
+				}
+				seq.rIDs = append(seq.rIDs, m[1])
+			}
+			rcIDs = id2 + "-" + strings.Join(seq.rIDs, "、")
+		}
+	}
+
 	resultLine = []any{
 		seq.ID,
 		seq.Start, seq.End,
