@@ -445,7 +445,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		yeildPercent = 0.0
 	}
 	id1 := seq.ID
-	id2 := strings.Replace(id1, "-", "_", 1)
+	id2 := strings.Replace(id1, "_", "-", 1)
 	reg1 := regexp.MustCompile(fmt.Sprintf("^%s-(\\d+)", id1))
 	reg2 := regexp.MustCompile(fmt.Sprintf("^%s-(\\d+)", id2))
 	if len(rightCloneIDs) > 0 {
@@ -458,8 +458,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 				seq.rIDs = append(seq.rIDs, m[1])
 			}
 			rcIDs = id1 + "-" + strings.Join(seq.rIDs, "、")
-		}
-		if reg2.MatchString(rightCloneIDs[0]) {
+		} else if reg2.MatchString(rightCloneIDs[0]) {
 			for _, id := range rightCloneIDs {
 				m := reg2.FindStringSubmatch(id)
 				if m == nil {
@@ -468,6 +467,8 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 				seq.rIDs = append(seq.rIDs, m[1])
 			}
 			rcIDs = id2 + "-" + strings.Join(seq.rIDs, "、")
+		} else {
+			log.Printf("can not parse clone:[%s]vs[%s|%s]", rightCloneIDs[0], reg1, reg2)
 		}
 	}
 
@@ -580,11 +581,14 @@ func GetTracyStatusLines(id string, result map[string][2]*tracy.Result) (data []
 	return
 }
 
-func LoadRawSequence(xlsx *excelize.File, sheet string) map[string]*Seq {
+func LoadRawSequence(xlsx *excelize.File, sheet string) (map[string]*Seq, []string) {
 	var (
-		title   []string
-		geneMap = make(map[string]*Seq)
-		rows    = simpleUtil.HandleError(xlsx.GetRows(sheet))
+		title []string
+
+		geneList []string
+		geneMap  = make(map[string]*Seq)
+
+		rows = simpleUtil.HandleError(xlsx.GetRows(sheet))
 	)
 
 	for i, row := range rows {
@@ -595,7 +599,7 @@ func LoadRawSequence(xlsx *excelize.File, sheet string) map[string]*Seq {
 		var seq = &Seq{}
 		for j, cell := range row {
 			switch title[j] {
-			case "片段名称":
+			case "基因名称":
 				if cell == "" {
 					log.Fatalf("%s [片段名称](%d,%d) 为空", sheet, i+1, j+1)
 				}
@@ -605,8 +609,9 @@ func LoadRawSequence(xlsx *excelize.File, sheet string) map[string]*Seq {
 			}
 		}
 		geneMap[seq.ID] = seq
+		geneList = append(geneList, seq.ID)
 	}
-	return geneMap
+	return geneMap, geneList
 }
 
 func LoadSegmentSequence(xlsx *excelize.File, sheet string, geneMap map[string]*Seq) (map[string]*Seq, []string) {
@@ -645,7 +650,7 @@ func LoadSegmentSequence(xlsx *excelize.File, sheet string, geneMap map[string]*
 
 		gene, ok := geneMap[seq.RefID]
 		if !ok {
-			log.Fatalf("can not find Ref[%s] of Segment[%s]", seq.RefID, seq.ID)
+			log.Fatalf("can not find Ref[%s] of Segment[%s],[keys:%+v]", seq.RefID, seq.ID, lo.Keys(geneMap))
 		}
 		gene.SubSeq = append(gene.SubSeq, seq)
 	}
@@ -705,6 +710,79 @@ func LoadPrimerPairSequence(xlsx *excelize.File, sheet string, segmentMap map[st
 		} else {
 			pair.CreateSub(pair.ID+"_1", primer1pos[0], primer1pos[1])
 			pair.CreateSub(pair.ID+"_2", primer2pos[0], primer2pos[1])
+		}
+	}
+}
+
+func AddSequencingResultPlate(xlsx *excelize.File, sheet string, geneList []string, geneMap map[string]*Seq) {
+	var (
+		bgColor1 = "#8CDDFA"
+		bgColor2 = "#FFC000"
+		bgColor3 = "#FFD966"
+
+		bgStyle1 = &excelize.Style{
+			Fill: excelize.Fill{
+				Type:    "pattern",
+				Color:   []string{bgColor1},
+				Pattern: 1,
+			},
+		}
+		bgStyle2 = &excelize.Style{
+			Fill: excelize.Fill{
+				Type:    "pattern",
+				Color:   []string{bgColor2},
+				Pattern: 1,
+			},
+		}
+		bgStyle3 = &excelize.Style{
+			Fill: excelize.Fill{
+				Type:    "pattern",
+				Color:   []string{bgColor3},
+				Pattern: 1,
+			},
+		}
+
+		style1 = simpleUtil.HandleError(xlsx.NewStyle(bgStyle1))
+		style2 = simpleUtil.HandleError(xlsx.NewStyle(bgStyle2))
+		style3 = simpleUtil.HandleError(xlsx.NewStyle(bgStyle3))
+	)
+
+	simpleUtil.HandleError(xlsx.NewSheet(sheet))
+	xlsx.SetSheetRow(sheet, "A3", &[]string{"基因名称", "长度", "节数"})
+	xlsx.SetSheetRow(sheet, "E3", &PlateCols)
+	xlsx.SetSheetRow(sheet, "S3", &PlateCols)
+	xlsx.SetCellStr(sheet, "D2", "批次号")
+	xlsx.SetSheetCol(sheet, "D4", &PlateRows)
+	xlsx.SetCellStr(sheet, "R2", "批次号")
+	xlsx.SetSheetCol(sheet, "R4", &PlateRows)
+	xlsx.SetCellStyle(sheet, "B4", "D11", style1)
+	xlsx.SetCellStyle(sheet, "R4", "R11", style1)
+	xlsx.SetCellStyle(sheet, "E3", "P3", style2)
+	xlsx.SetCellStyle(sheet, "S3", "AD3", style2)
+
+	for i, geneID := range geneList {
+		gene := geneMap[geneID]
+		xlsx.SetCellStr(sheet, fmt.Sprintf("A%d", 4+i*2), geneID)
+		xlsx.SetCellStr(sheet, fmt.Sprintf("B%d", 4+i*2), fmt.Sprintf("%dbp", len(gene.Seq)))
+		xlsx.SetCellInt(sheet, fmt.Sprintf("C%d", 4+i*2), len(gene.SubSeq))
+
+		for j, segment := range gene.SubSeq {
+			cellName := simpleUtil.HandleError(excelize.CoordinatesToCellName(19+j, 4+i*2))
+			xlsx.SetCellInt(sheet, cellName, segment.End-segment.Start)
+			cellName = simpleUtil.HandleError(excelize.CoordinatesToCellName(19+j, 4+i*2+1))
+			xlsx.SetCellInt(sheet, cellName, segment.End-segment.Start)
+			cellName = simpleUtil.HandleError(excelize.CoordinatesToCellName(5+j, 4+i*2))
+			xlsx.SetCellStr(sheet, cellName, "N")
+			xlsx.SetCellStyle(sheet, cellName, cellName, style3)
+			if len(segment.rIDs) > 0 {
+				xlsx.SetCellStr(sheet, cellName, segment.ID+"-"+segment.rIDs[0])
+			}
+			cellName = simpleUtil.HandleError(excelize.CoordinatesToCellName(5+j, 4+i*2+1))
+			xlsx.SetCellStr(sheet, cellName, "N")
+			xlsx.SetCellStyle(sheet, cellName, cellName, style3)
+			if len(segment.rIDs) > 1 {
+				xlsx.SetCellStr(sheet, cellName, segment.ID+"-"+strings.Join(segment.rIDs[1:], "、"))
+			}
 		}
 	}
 }

@@ -139,9 +139,9 @@ func main() {
 		cloneVariantLines = make(map[string][][]any)
 		setVariantLines   = make(map[string][][]any)
 
-		xlsx                = simpleUtil.HandleError(excelize.OpenFile(*input))
-		geneMap             = LoadRawSequence(xlsx, "原始序列")
-		segmentMap, seqList = LoadSegmentSequence(xlsx, "分段序列", geneMap)
+		xlsx                    = simpleUtil.HandleError(excelize.OpenFile(*input))
+		geneMap, geneList       = LoadRawSequence(xlsx, "原始序列")
+		segmentMap, segmentList = LoadSegmentSequence(xlsx, "分段序列", geneMap)
 	)
 
 	LoadPrimerPairSequence(xlsx, "引物对序列", segmentMap)
@@ -153,7 +153,7 @@ func main() {
 		if osUtil.FileExists(*renameTxt) {
 			rename = simpleUtil.HandleError(textUtil.File2Map(*renameTxt, "\t", false))
 		} else {
-			for _, id := range seqList {
+			for _, id := range segmentList {
 				// rename[id] = strings.Replace(id, "A", "-A", 1)
 				rename[id] = id
 			}
@@ -161,9 +161,9 @@ func main() {
 		slog.Info("RENAME", "rename", rename)
 	}
 
-	results := make(chan tracyResult, len(seqList)) // 缓冲通道提升性能
+	results := make(chan tracyResult, len(segmentList)) // 缓冲通道提升性能
 	var wg sync.WaitGroup
-	for i, id := range seqList {
+	for i, id := range segmentList {
 		renameID, ok := rename[id]
 		if !ok {
 			slog.Error("Skip", "i", i, "id", id)
@@ -192,19 +192,19 @@ func main() {
 
 	// 写入 result
 	resultFormat := "%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\n"
-	WriteSlice(filepath.Join(*outputDir, "Result.txt"), resultFormat, ResultTitle, seqList, resultLines)
+	WriteSlice(filepath.Join(*outputDir, "Result.txt"), resultFormat, ResultTitle, segmentList, resultLines)
 
 	// 写入 tracy result
 	tracyFormat := "%s\t%s\t%d\t%s\t%v\t%d\t%d\t%f\n"
-	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, seqList, tracyStatusLines)
-	WriteSliceSheet(xlsx, "Sanger统计", tracyStatusTitle, seqList, tracyStatusLines)
+	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, segmentList, tracyStatusLines)
+	WriteSliceSheet(xlsx, "Sanger统计", tracyStatusTitle, segmentList, tracyStatusLines)
 
 	// 写入 excel
 	simpleUtil.HandleError(xlsx.NewSheet("Sanger结果"))
 	xlsx.SetSheetRow("Sanger结果", "A1", &ResultTitle)
 	primerACC := make(map[string][2]float64)
 	row := 2
-	for _, id := range seqList {
+	for _, id := range segmentList {
 		for _, line := range resultLines[id] {
 			pID := line[1].(string)
 			acc := line[19].(float64)
@@ -218,16 +218,18 @@ func main() {
 	simpleUtil.HandleError(xlsx.NewSheet("片段结果"))
 	xlsx.SetSheetRow("片段结果", "A1", &SeqTitle)
 	row = 2
-	for _, id := range seqList {
+	for _, id := range segmentList {
 		line := seqLines[id]
 		xlsx.SetSheetRow("片段结果", fmt.Sprintf("A%d", row), &line)
 		row++
 	}
 
+	AddSequencingResultPlate(xlsx, "测序结果板位图", geneList, geneMap)
+
 	simpleUtil.HandleError(xlsx.NewSheet("Clone变异结果"))
 	xlsx.SetSheetRow("Clone变异结果", "A1", &CloneVariantTitle)
 	row = 2
-	for _, id := range seqList {
+	for _, id := range segmentList {
 		lines := cloneVariantLines[id]
 		for _, line := range lines {
 			xlsx.SetSheetRow("Clone变异结果", fmt.Sprintf("A%d", row), &line)
@@ -238,7 +240,7 @@ func main() {
 	simpleUtil.HandleError(xlsx.NewSheet("变异统计"))
 	xlsx.SetSheetRow("变异统计", "A1", &SetVariantTitle)
 	row = 2
-	for _, id := range seqList {
+	for _, id := range segmentList {
 		lines := setVariantLines[id]
 		for _, line := range lines {
 			xlsx.SetSheetRow("变异统计", fmt.Sprintf("A%d", row), &line)

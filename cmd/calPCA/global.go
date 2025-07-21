@@ -96,4 +96,29 @@ var (
 
 	CloneCountLimit = 32
 	MaxQual         = 45
+
+	PlateCols = []int{
+		1,
+		2,
+		3,
+		4,
+		5,
+		6,
+		7,
+		8,
+		9,
+		10,
+		11,
+		12,
+	}
+	PlateRows = []string{
+		"A",
+		"B",
+		"C",
+		"D",
+		"E",
+		"F",
+		"G",
+		"H",
+	}
 )
