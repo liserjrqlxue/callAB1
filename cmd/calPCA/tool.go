@@ -458,6 +458,10 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 				seq.rIDs = append(seq.rIDs, m[1])
 			}
 			rcIDs = id1 + "-" + strings.Join(seq.rIDs, "、")
+			rcIDs1 = id1 + "-" + strings.Join(seq.rIDs[:min(2, len(seq.rIDs))], "、")
+			if len(seq.rIDs) >= 2 {
+				rcIDs2 = id1 + "-" + strings.Join(seq.rIDs[min(2, len(seq.rIDs)):], "、")
+			}
 		} else if reg2.MatchString(rightCloneIDs[0]) {
 			for _, id := range rightCloneIDs {
 				m := reg2.FindStringSubmatch(id)
@@ -467,6 +471,10 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 				seq.rIDs = append(seq.rIDs, m[1])
 			}
 			rcIDs = id2 + "-" + strings.Join(seq.rIDs, "、")
+			rcIDs1 = id2 + "-" + strings.Join(seq.rIDs[:min(2, len(seq.rIDs))], "、")
+			if len(seq.rIDs) > 2 {
+				rcIDs2 = id2 + "-" + strings.Join(seq.rIDs[min(2, len(seq.rIDs)):], "、")
+			}
 		} else {
 			log.Printf("can not parse clone:[%s]vs[%s|%s]", rightCloneIDs[0], reg1, reg2)
 		}
