@@ -579,3 +579,132 @@ func GetTracyStatusLines(id string, result map[string][2]*tracy.Result) (data []
 	}
 	return
 }
+
+func LoadRawSequence(xlsx *excelize.File, sheet string) map[string]*Seq {
+	var (
+		title   []string
+		geneMap = make(map[string]*Seq)
+		rows    = simpleUtil.HandleError(xlsx.GetRows(sheet))
+	)
+
+	for i, row := range rows {
+		if i == 0 {
+			title = row
+			continue
+		}
+		var seq = &Seq{}
+		for j, cell := range row {
+			switch title[j] {
+			case "片段名称":
+				if cell == "" {
+					log.Fatalf("%s [片段名称](%d,%d) 为空", sheet, i+1, j+1)
+				}
+				seq.ID = cell
+			case "DNA序列":
+				seq.Seq = cell
+			}
+		}
+		geneMap[seq.ID] = seq
+	}
+	return geneMap
+}
+
+func LoadSegmentSequence(xlsx *excelize.File, sheet string, geneMap map[string]*Seq) (map[string]*Seq, []string) {
+	var (
+		title   []string
+		seqList []string
+
+		seqMap = make(map[string]*Seq)
+		rows   = simpleUtil.HandleError(xlsx.GetRows(sheet))
+	)
+
+	for i, row := range rows {
+		if i == 0 {
+			title = row
+			continue
+		}
+		var seq = &Seq{}
+		for j, cell := range row {
+			switch title[j] {
+			case "片段名称":
+				if cell == "" {
+					log.Fatalf("分段序列 片段名称(%d,%d) 为空", i+1, j+1)
+				}
+				seq.ID = cell
+				seq.RefID = cell[:len(cell)-2]
+			case "片段序列":
+				seq.Seq = cell
+			case "起点":
+				seq.Start = stringsUtil.Atoi(cell)
+			case "终点":
+				seq.End = stringsUtil.Atoi(cell)
+			}
+		}
+		seqMap[seq.ID] = seq
+		seqList = append(seqList, seq.ID)
+
+		gene, ok := geneMap[seq.RefID]
+		if !ok {
+			log.Fatalf("can not find Ref[%s] of Segment[%s]", seq.RefID, seq.ID)
+		}
+		gene.SubSeq = append(gene.SubSeq, seq)
+	}
+	return seqMap, seqList
+}
+
+func LoadPrimerPairSequence(xlsx *excelize.File, sheet string, segmentMap map[string]*Seq) {
+	var (
+		title = []string{}
+		rows  = simpleUtil.HandleError(xlsx.GetRows(sheet))
+	)
+	for i, row := range rows {
+		if i == 0 {
+			title = row
+			continue
+		}
+		var pair = &Seq{}
+		var primer1pos [2]int
+		var primer2pos [2]int
+		for j, cell := range row {
+			switch title[j] {
+			case "引物对名称":
+				pair.ID = cell
+				pair.RefID = strings.TrimSuffix(cell[:len(cell)-1], "_")
+			case "引物对序列":
+				pair.Seq = cell
+			case "有效序列-起点":
+				pair.Start = stringsUtil.Atoi(cell)
+			case "有效序列-终点":
+				pair.End = stringsUtil.Atoi(cell)
+			case "左引物-起点":
+				primer1pos[0] = stringsUtil.Atoi(cell)
+			case "左引物-终点":
+				primer1pos[1] = stringsUtil.Atoi(cell)
+			case "右引物-起点":
+				primer2pos[0] = stringsUtil.Atoi(cell)
+			case "右引物-终点":
+				primer2pos[1] = stringsUtil.Atoi(cell)
+			case "片段-起点":
+				pair.RefStart = stringsUtil.Atoi(cell)
+			case "片段-终点":
+				pair.RefEnd = stringsUtil.Atoi(cell)
+			}
+		}
+		refSeq, ok := segmentMap[pair.RefID]
+		if !ok {
+			log.Fatalf("ref not found for:[id:%s,ref:%s],[keys:%+v]", pair.ID, pair.RefID, lo.Keys(segmentMap))
+		}
+		// 检查符合
+		if refSeq.Seq[refSeq.Start:refSeq.End][pair.RefStart:pair.RefEnd] != pair.Seq[pair.Start:pair.End] {
+			log.Fatal("seq not match for:", pair.ID)
+		}
+		pair.RefSeq = refSeq
+		refSeq.SubSeq = append(refSeq.SubSeq, pair)
+		if *renameTxt != "" {
+			pair.CreateSub(pair.ID, primer1pos[0], primer1pos[1])
+		} else {
+			pair.CreateSub(pair.ID+"_1", primer1pos[0], primer1pos[1])
+			pair.CreateSub(pair.ID+"_2", primer2pos[0], primer2pos[1])
+		}
+	}
+}

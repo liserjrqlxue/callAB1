@@ -16,7 +16,6 @@ import (
 	"github.com/liserjrqlxue/goUtil/fmtUtil"
 	"github.com/liserjrqlxue/goUtil/osUtil"
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
-	"github.com/liserjrqlxue/goUtil/stringsUtil"
 	"github.com/liserjrqlxue/goUtil/textUtil"
 	"github.com/liserjrqlxue/version"
 	"github.com/samber/lo"
@@ -79,6 +78,8 @@ type Seq struct {
 	RefEnd   int    `json:"refEnd"`
 
 	SubSeq []*Seq `json:"subSeq"`
+
+	rIDs []string
 }
 
 func (s *Seq) CreateSub(id string, start, end int) *Seq {
@@ -129,93 +130,6 @@ func main() {
 
 	MaxQual = *maxQual
 
-	var inputXlsx = simpleUtil.HandleError(excelize.OpenFile(*input))
-
-	var seqMap = make(map[string]*Seq)
-	var seqList []string
-	var rows = simpleUtil.HandleError(inputXlsx.GetRows("分段序列"))
-	var title []string
-	for i, row := range rows {
-		if i == 0 {
-			title = row
-			continue
-		}
-		var seq = &Seq{}
-		for j, cell := range row {
-			switch title[j] {
-			case "片段名称":
-				if cell == "" {
-					log.Fatalf("分段序列 片段名称(%d,%d) 为空", i+1, j+1)
-				}
-				seq.ID = cell
-				seq.RefID = cell[:len(cell)-1]
-			case "片段序列":
-				seq.Seq = cell
-			case "起点":
-				seq.Start = stringsUtil.Atoi(cell)
-			case "终点":
-				seq.End = stringsUtil.Atoi(cell)
-			}
-		}
-		seqMap[seq.ID] = seq
-		seqList = append(seqList, seq.ID)
-	}
-
-	rows = simpleUtil.HandleError(inputXlsx.GetRows("引物对序列"))
-	title = []string{}
-	for i, row := range rows {
-		if i == 0 {
-			title = row
-			continue
-		}
-		var pair = &Seq{}
-		var primer1pos [2]int
-		var primer2pos [2]int
-		for j, cell := range row {
-			switch title[j] {
-			case "引物对名称":
-				pair.ID = cell
-				pair.RefID = strings.TrimSuffix(cell[:len(cell)-1], "_")
-			case "引物对序列":
-				pair.Seq = cell
-			case "有效序列-起点":
-				pair.Start = stringsUtil.Atoi(cell)
-			case "有效序列-终点":
-				pair.End = stringsUtil.Atoi(cell)
-			case "左引物-起点":
-				primer1pos[0] = stringsUtil.Atoi(cell)
-			case "左引物-终点":
-				primer1pos[1] = stringsUtil.Atoi(cell)
-			case "右引物-起点":
-				primer2pos[0] = stringsUtil.Atoi(cell)
-			case "右引物-终点":
-				primer2pos[1] = stringsUtil.Atoi(cell)
-			case "片段-起点":
-				pair.RefStart = stringsUtil.Atoi(cell)
-			case "片段-终点":
-				pair.RefEnd = stringsUtil.Atoi(cell)
-			}
-		}
-		refSeq, ok := seqMap[pair.RefID]
-		if !ok {
-			log.Fatalf("ref not found for:[id:%s,ref:%s],[keys:%+v]", pair.ID, pair.RefID, lo.Keys(seqMap))
-		}
-		// 检查符合
-		if refSeq.Seq[refSeq.Start:refSeq.End][pair.RefStart:pair.RefEnd] != pair.Seq[pair.Start:pair.End] {
-			log.Fatal("seq not match for:", pair.ID)
-		}
-		pair.RefSeq = refSeq
-		refSeq.SubSeq = append(refSeq.SubSeq, pair)
-		if *renameTxt != "" {
-			pair.CreateSub(pair.ID, primer1pos[0], primer1pos[1])
-		} else {
-			pair.CreateSub(pair.ID+"_1", primer1pos[0], primer1pos[1])
-			pair.CreateSub(pair.ID+"_2", primer2pos[0], primer2pos[1])
-		}
-	}
-
-	simpleUtil.CheckErr(os.MkdirAll(*outputDir, 0755))
-
 	var (
 		cy0130            bool
 		rename            = make(map[string]string)
@@ -224,7 +138,16 @@ func main() {
 		seqLines          = make(map[string][]any)
 		cloneVariantLines = make(map[string][][]any)
 		setVariantLines   = make(map[string][][]any)
+
+		xlsx                = simpleUtil.HandleError(excelize.OpenFile(*input))
+		geneMap             = LoadRawSequence(xlsx, "原始序列")
+		segmentMap, seqList = LoadSegmentSequence(xlsx, "分段序列", geneMap)
 	)
+
+	LoadPrimerPairSequence(xlsx, "引物对序列", segmentMap)
+
+	simpleUtil.CheckErr(os.MkdirAll(*outputDir, 0755))
+
 	if *renameTxt != "" {
 		cy0130 = true
 		if osUtil.FileExists(*renameTxt) {
@@ -248,7 +171,7 @@ func main() {
 			wg.Add(1)
 			go func(i int, id string) {
 				defer wg.Done()
-				results <- processSeq(i, id, cy0130, renameID, *outputDir, *bin, seqMap)
+				results <- processSeq(i, id, cy0130, renameID, *outputDir, *bin, segmentMap)
 			}(i, id)
 		}
 	}
@@ -274,11 +197,11 @@ func main() {
 	// 写入 tracy result
 	tracyFormat := "%s\t%s\t%d\t%s\t%v\t%d\t%d\t%f\n"
 	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, seqList, tracyStatusLines)
-	WriteSliceSheet(inputXlsx, "Sanger统计", tracyStatusTitle, seqList, tracyStatusLines)
+	WriteSliceSheet(xlsx, "Sanger统计", tracyStatusTitle, seqList, tracyStatusLines)
 
 	// 写入 excel
-	simpleUtil.HandleError(inputXlsx.NewSheet("Sanger结果"))
-	inputXlsx.SetSheetRow("Sanger结果", "A1", &ResultTitle)
+	simpleUtil.HandleError(xlsx.NewSheet("Sanger结果"))
+	xlsx.SetSheetRow("Sanger结果", "A1", &ResultTitle)
 	primerACC := make(map[string][2]float64)
 	row := 2
 	for _, id := range seqList {
@@ -287,38 +210,38 @@ func main() {
 			acc := line[19].(float64)
 			geomMeanAcc := line[21].(float64)
 			primerACC[pID] = [2]float64{acc, geomMeanAcc}
-			inputXlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", row), &line)
+			xlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", row), &line)
 			row++
 		}
 	}
 
-	simpleUtil.HandleError(inputXlsx.NewSheet("片段结果"))
-	inputXlsx.SetSheetRow("片段结果", "A1", &SeqTitle)
+	simpleUtil.HandleError(xlsx.NewSheet("片段结果"))
+	xlsx.SetSheetRow("片段结果", "A1", &SeqTitle)
 	row = 2
 	for _, id := range seqList {
 		line := seqLines[id]
-		inputXlsx.SetSheetRow("片段结果", fmt.Sprintf("A%d", row), &line)
+		xlsx.SetSheetRow("片段结果", fmt.Sprintf("A%d", row), &line)
 		row++
 	}
 
-	simpleUtil.HandleError(inputXlsx.NewSheet("Clone变异结果"))
-	inputXlsx.SetSheetRow("Clone变异结果", "A1", &CloneVariantTitle)
+	simpleUtil.HandleError(xlsx.NewSheet("Clone变异结果"))
+	xlsx.SetSheetRow("Clone变异结果", "A1", &CloneVariantTitle)
 	row = 2
 	for _, id := range seqList {
 		lines := cloneVariantLines[id]
 		for _, line := range lines {
-			inputXlsx.SetSheetRow("Clone变异结果", fmt.Sprintf("A%d", row), &line)
+			xlsx.SetSheetRow("Clone变异结果", fmt.Sprintf("A%d", row), &line)
 			row++
 		}
 	}
 
-	simpleUtil.HandleError(inputXlsx.NewSheet("变异统计"))
-	inputXlsx.SetSheetRow("变异统计", "A1", &SetVariantTitle)
+	simpleUtil.HandleError(xlsx.NewSheet("变异统计"))
+	xlsx.SetSheetRow("变异统计", "A1", &SetVariantTitle)
 	row = 2
 	for _, id := range seqList {
 		lines := setVariantLines[id]
 		for _, line := range lines {
-			inputXlsx.SetSheetRow("变异统计", fmt.Sprintf("A%d", row), &line)
+			xlsx.SetSheetRow("变异统计", fmt.Sprintf("A%d", row), &line)
 			row++
 		}
 	}
@@ -326,10 +249,10 @@ func main() {
 	if *inputOrder != "" {
 		inputOderXlsx := simpleUtil.HandleError(excelize.OpenFile(*inputOrder))
 		rows := simpleUtil.HandleError(inputOderXlsx.GetRows("拼接引物板"))
-		simpleUtil.HandleError(inputXlsx.NewSheet("拼接引物板"))
+		simpleUtil.HandleError(xlsx.NewSheet("拼接引物板"))
 		for i, row := range rows {
 			for j, cell := range row {
-				inputXlsx.SetCellValue(
+				xlsx.SetCellValue(
 					"拼接引物板",
 					simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1)),
 					cell,
@@ -337,40 +260,40 @@ func main() {
 				pID := strings.Split(cell, "\n")[0]
 				accs, ok := primerACC[pID]
 				if ok {
-					inputXlsx.SetCellValue(
+					xlsx.SetCellValue(
 						"拼接引物板",
 						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)+1)),
 						accs[0],
 					)
-					inputXlsx.SetCellValue(
+					xlsx.SetCellValue(
 						"拼接引物板",
 						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)*2+2)),
 						accs[1],
 					)
 				} else {
-					inputXlsx.SetCellValue(
+					xlsx.SetCellValue(
 						"拼接引物板",
 						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)+1)),
 						cell,
 					)
-					inputXlsx.SetCellValue(
+					xlsx.SetCellValue(
 						"拼接引物板",
 						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)*2+2)),
 						cell,
 					)
 				}
 			}
-			inputXlsx.SetCellValue(
+			xlsx.SetCellValue(
 				"拼接引物板",
 				simpleUtil.HandleError(excelize.CoordinatesToCellName(1, 1)),
 				"板位",
 			)
-			inputXlsx.SetCellValue(
+			xlsx.SetCellValue(
 				"拼接引物板",
 				simpleUtil.HandleError(excelize.CoordinatesToCellName(1, 1+len(rows)+1)),
 				"平均准确率(%)",
 			)
-			inputXlsx.SetCellValue(
+			xlsx.SetCellValue(
 				"拼接引物板",
 				simpleUtil.HandleError(excelize.CoordinatesToCellName(1, 1+len(rows)*2+2)),
 				"参考单步准确率(%)",
@@ -378,7 +301,7 @@ func main() {
 		}
 	}
 
-	inputXlsx.SaveAs(*outputDir + ".Sanger结果.xlsx")
+	xlsx.SaveAs(*outputDir + ".Sanger结果.xlsx")
 
 }
 
