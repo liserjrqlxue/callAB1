@@ -325,15 +325,18 @@ func GetHightRatio(vPosRatio map[int]float64, k, n int) map[int]float64 {
 	return vPosHightRatio
 }
 
-func GetDeletionHightRatio(vPosDeletionRatio map[int]float64, n int) map[int]float64 {
-	var vPosDeletionHightRatio = make(map[int]float64)
+func GetDeletionHightRatio(vPosDeletionRatio map[int]float64, vPosDeletionRef map[int]byte, n int) (vPosDeletionHightRef []byte) {
+	var (
+		vPosDeletionHightRatio = make(map[int]float64)
+	)
 	for pos := range vPosDeletionRatio {
 		ratio := vPosDeletionRatio[pos] / float64(n)
 		if ratio >= 0.8 {
 			vPosDeletionHightRatio[pos] = ratio
+			vPosDeletionHightRef = append(vPosDeletionHightRef, vPosDeletionRef[pos])
 		}
 	}
-	return vPosDeletionHightRatio
+	return
 }
 
 func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLine []any) {
@@ -349,15 +352,17 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		geoMeanAccPercent = 1.0                 // 平均准确率
 		sangerSet         []string
 
-		vSet                   = make(map[string]bool) // 变异
-		vPosRatio              = make(map[int]float64) // 变异位置
-		vPosHightRatio         = make(map[int]float64) // 高频变异位置
-		vPosDeletionRatio      = make(map[int]float64) // 缺失变异位置
-		vPosDeletionHightRatio = make(map[int]float64) // 高频缺失
-		vTypeCounts            = make(map[string]int)
-		vTypePercent           = make(map[string]float64)
-		selectClones           = make(map[string]bool) // 正确克隆
-		selectHetClones        = make(map[string]bool) // Het正确克隆
+		vSet              = make(map[string]bool) // 变异
+		vPosRatio         = make(map[int]float64) // 变异位置
+		vPosHightRatio    = make(map[int]float64) // 高频变异位置
+		vPosDeletionRatio = make(map[int]float64) // 缺失变异位置
+		vPosDeletionRef   = make(map[int]byte)
+		// vPosDeletionHightRatio = make(map[int]float64) // 高频缺失
+		vDeletionHightRef []byte // 高频缺失碱基
+		vTypeCounts       = make(map[string]int)
+		vTypePercent      = make(map[string]float64)
+		selectClones      = make(map[string]bool) // 正确克隆
+		selectHetClones   = make(map[string]bool) // Het正确克隆
 	)
 
 	for sangerPairIndex, pairResult := range result {
@@ -404,13 +409,14 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 			for k := range ref {
 				if k >= len(alt) {
 					vPosDeletionRatio[pos+k]++
+					vPosDeletionRef[pos+k] = ref[k]
 				}
 			}
 		}
 	}
 
 	vPosHightRatio = GetHightRatio(vPosRatio, 1, n)
-	vPosDeletionHightRatio = GetDeletionHightRatio(vPosDeletionRatio, n)
+	vDeletionHightRef = GetDeletionHightRatio(vPosDeletionRatio, vPosDeletionRef, n)
 	// 计算收率
 	for pos := range vPosRatio {
 		vPosRatio[pos] /= float64(n)
@@ -491,7 +497,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		len(vPosRatio),
 		len(vSet),
 		len(vPosHightRatio),
-		len(vPosDeletionHightRatio),
+		string(vDeletionHightRef),
 		vTypeCounts["SNV"],
 		vTypeCounts["Insertion"],
 		vTypeCounts["Deletion"],
