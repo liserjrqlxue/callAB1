@@ -659,6 +659,10 @@ func LoadSegmentSequence(xlsx *excelize.File, sheet string, geneMap map[string]*
 				seq.End = stringsUtil.Atoi(cell)
 			}
 		}
+		// skip EGC_K
+		if seq.ID == "EGC_K" {
+			continue
+		}
 		seqMap[seq.ID] = seq
 		seqList = append(seqList, seq.ID)
 
