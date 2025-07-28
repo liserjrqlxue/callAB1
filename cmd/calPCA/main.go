@@ -207,9 +207,13 @@ func main() {
 	for _, id := range segmentList {
 		for _, line := range resultLines[id] {
 			pID := line[1].(string)
+			valid := line[7].(int)
 			acc := line[19].(float64)
 			geomMeanAcc := line[21].(float64)
-			primerACC[pID] = [2]float64{acc, geomMeanAcc}
+
+			if valid > 0 {
+				primerACC[pID] = [2]float64{acc, geomMeanAcc}
+			}
 			xlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", row), &line)
 			row++
 		}
