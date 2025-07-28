@@ -246,7 +246,7 @@ func RecordPrimer(primer *Seq, result map[string][2]*tracy.Result, out *os.File,
 	return
 }
 
-func RecordPair(pair *Seq, result map[string][2]*tracy.Result, out *os.File, pairIndex, segOffset int) (resultLines [][]interface{}) {
+func RecordPair(pair *Seq, result map[string][2]*tracy.Result, out *os.File, pairIndex, segOffset int) (resultLines [][]any) {
 	var (
 		segStart = pair.RefStart + segOffset
 		segEnd   = pair.RefEnd + segOffset
