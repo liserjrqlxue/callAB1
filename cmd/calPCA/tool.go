@@ -339,6 +339,13 @@ func GetDeletionHightRatio(vPosDeletionRatio map[int]float64, vPosDeletionRef ma
 	return
 }
 
+// threshold determination (%)
+var (
+	SnvRatio = 0.9170 + 6.3030
+	InsRatio = 0.0699 + 0.3301
+	DelRatio = 0.0551 + 0.2249
+)
+
 func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLine []any) {
 	out := osUtil.Create(prefix + ".seq.result.txt")
 	defer simpleUtil.DeferClose(out)
@@ -358,11 +365,12 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		vPosDeletionRatio = make(map[int]float64) // 缺失变异位置
 		vPosDeletionRef   = make(map[int]byte)
 		// vPosDeletionHightRatio = make(map[int]float64) // 高频缺失
-		vDeletionHightRef []byte // 高频缺失碱基
-		vTypeCounts       = make(map[string]int)
-		vTypePercent      = make(map[string]float64)
-		selectClones      = make(map[string]bool) // 正确克隆
-		selectHetClones   = make(map[string]bool) // Het正确克隆
+		vDeletionHightRef      []byte // 高频缺失碱基
+		vTypeCounts            = make(map[string]int)
+		vTypePercent           = make(map[string]float64)
+		selectClones           = make(map[string]bool) // 正确克隆
+		selectHetClones        = make(map[string]bool) // Het正确克隆
+		ThresholdDeterminaiton = "合格"
 	)
 
 	for sangerPairIndex, pairResult := range result {
@@ -486,6 +494,9 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		}
 	}
 
+	if vTypePercent["SNV"] >= SnvRatio || vTypePercent["Insertion"] >= InsRatio || vTypePercent["Deletion"] >= DelRatio {
+		ThresholdDeterminaiton = "不合格"
+	}
 	resultLine = []any{
 		seq.ID,
 		seq.Start, seq.End,
@@ -515,6 +526,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		rcIDs1,
 		rcHetIDs,
 		rcIDs2,
+		ThresholdDeterminaiton,
 	}
 	// 写入 result
 	resultFormat := "%s\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%v\t%v\n"

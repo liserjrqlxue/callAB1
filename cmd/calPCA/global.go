@@ -31,6 +31,7 @@ var (
 		"正确Sanger列表1",
 		"杂合正确克隆列表",
 		"正确Sanger列表2",
+		"阈值判定",
 	}
 
 	ResultTitle = []string{
