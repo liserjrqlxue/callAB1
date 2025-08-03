@@ -1,6 +1,12 @@
 package main
 
 var (
+	BatchTitle = []string{
+		"平均SNV比率(%)",
+		"平均INS比率(%)",
+		"平均DEL比率(%)",
+		"状态",
+	}
 	SeqTitle = []string{
 		"片段名称",
 		"片段范围-起始",

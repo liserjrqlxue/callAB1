@@ -346,7 +346,7 @@ var (
 	DelRatio = 0.0551 + 0.2249
 )
 
-func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLine []any) {
+func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLine []any, vTypePercent map[string]float64) {
 	out := osUtil.Create(prefix + ".seq.result.txt")
 	defer simpleUtil.DeferClose(out)
 
@@ -367,11 +367,11 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 		// vPosDeletionHightRatio = make(map[int]float64) // 高频缺失
 		vDeletionHightRef      []byte // 高频缺失碱基
 		vTypeCounts            = make(map[string]int)
-		vTypePercent           = make(map[string]float64)
 		selectClones           = make(map[string]bool) // 正确克隆
 		selectHetClones        = make(map[string]bool) // Het正确克隆
 		ThresholdDeterminaiton = "合格"
 	)
+	vTypePercent = make(map[string]float64)
 
 	for sangerPairIndex, pairResult := range result {
 		if Record1Result(seq, result, out, seq.ID, sangerPairIndex, 0, vSet) {

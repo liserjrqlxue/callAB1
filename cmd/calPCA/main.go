@@ -139,7 +139,9 @@ func main() {
 		cloneVariantLines = make(map[string][][]any)
 		setVariantLines   = make(map[string][][]any)
 
-		xlsx                    = simpleUtil.HandleError(excelize.OpenFile(*input))
+		xlsx  = simpleUtil.HandleError(excelize.OpenFile(*input))
+		sheet string
+
 		geneMap, geneList       = LoadRawSequence(xlsx, "原始序列")
 		segmentMap, segmentList = LoadSegmentSequence(xlsx, "分段序列", geneMap)
 	)
@@ -182,12 +184,30 @@ func main() {
 		close(results)
 	}()
 
+	var (
+		snvRatios    []float64
+		insRatios    []float64
+		delRatios    []float64
+		meanSnvRatio float64
+		meanInsRatio float64
+		meanDelRatio float64
+		batchStatus  = "合格"
+	)
 	for result := range results {
 		resultLines[result.id] = result.resultLines
 		tracyStatusLines[result.id] = result.statusLines
 		seqLines[result.id] = result.seqLines
 		cloneVariantLines[result.id] = result.cloneVariantLines
 		setVariantLines[result.id] = result.setVariantLines
+		snvRatios = append(snvRatios, result.SnvRatio)
+		insRatios = append(insRatios, result.InsRatio)
+		delRatios = append(delRatios, result.DelRatio)
+	}
+	meanSnvRatio = lo.Mean(snvRatios)
+	meanInsRatio = lo.Mean(insRatios)
+	meanDelRatio = lo.Mean(delRatios)
+	if meanSnvRatio >= SnvRatio || meanInsRatio >= InsRatio || meanDelRatio >= DelRatio {
+		batchStatus = "不合格"
 	}
 
 	// 写入 result
@@ -307,6 +327,19 @@ func main() {
 		}
 	}
 
+	sheet = "批次统计"
+	simpleUtil.HandleError(xlsx.NewSheet(sheet))
+	xlsx.SetSheetRow(sheet, "A1", &BatchTitle)
+	xlsx.SetSheetRow(
+		sheet, "A2",
+		&[]any{
+			meanSnvRatio,
+			meanInsRatio,
+			meanDelRatio,
+			batchStatus,
+		},
+	)
+
 	xlsx.SaveAs(*outputDir + ".Sanger结果.xlsx")
 
 }
@@ -318,7 +351,13 @@ type tracyResult struct {
 	seqLines          []any
 	cloneVariantLines [][]any
 	setVariantLines   [][]any
+
+	// (%)
+	SnvRatio float64
+	InsRatio float64
+	DelRatio float64
 }
+
 type Variant struct {
 	GeneID       string
 	CloneID      string
@@ -663,12 +702,18 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 	}
 	simpleUtil.CheckErr(out.Close())
 
+	seqLines, vTypePercent := RecordSeq(seq, result, prefix)
+
 	return tracyResult{
 		id:                id,
 		statusLines:       GetTracyStatusLines(id, result),
 		resultLines:       RecordSeqPrimer(seq, result, prefix),
-		seqLines:          RecordSeq(seq, result, prefix),
+		seqLines:          seqLines,
 		cloneVariantLines: cloneVariantsLines,
 		setVariantLines:   setVariantLines,
+
+		SnvRatio: vTypePercent["SNV"],
+		InsRatio: vTypePercent["Insertion"],
+		DelRatio: vTypePercent["Deletion"],
 	}
 }
