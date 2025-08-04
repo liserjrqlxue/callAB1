@@ -336,7 +336,14 @@ type Sanger struct {
 }
 
 func (sanger *Sanger) Run(ref string) {
-	result := simpleUtil.HandleError(tracy.RunSingle(*bin, ref, sanger.Path, sanger.Prefix, false))
+	result, err := tracy.RunSingle(*bin, ref, sanger.Path, sanger.Prefix, false)
+	if err != nil {
+		sanger.Result = &tracy.Result{
+			Status: "RunError",
+			Pass:   false,
+		}
+		return
+	}
 	sanger.Result = &result
 	sanger.MatchRegion = sanger.Result.AlignResult.MatchRegion
 }
