@@ -69,6 +69,11 @@ var (
 		false,
 		"override tracy result",
 	)
+	fix = flag.Bool(
+		"fix",
+		false,
+		"run chemical supplements",
+	)
 )
 
 type Seq struct {
@@ -140,7 +145,7 @@ func main() {
 		rename            = make(map[string]string)
 		resultLines       = make(map[string][][]any)
 		tracyStatusLines  = make(map[string][][]any)
-		seqLines          = make(map[string][]any)
+		segmentLines      = make(map[string][]any) // 片段结果
 		cloneVariantLines = make(map[string][][]any)
 		setVariantLines   = make(map[string][][]any)
 
@@ -149,6 +154,8 @@ func main() {
 
 		geneMap, geneList       = LoadRawSequence(xlsx, "原始序列")
 		segmentMap, segmentList = LoadSegmentSequence(xlsx, "分段序列", geneMap)
+
+		batchName = strings.TrimSuffix(filepath.Base(*input), ".自合.xlsx")
 	)
 
 	LoadPrimerPairSequence(xlsx, "引物对序列", segmentMap)
@@ -197,22 +204,43 @@ func main() {
 		meanInsRatio float64
 		meanDelRatio float64
 		batchStatus  = "合格"
+		// List of chemical supplements
+		chemicalSuppList []*Seq
 	)
 	for result := range results {
-		resultLines[result.id] = result.resultLines
-		tracyStatusLines[result.id] = result.statusLines
-		seqLines[result.id] = result.seqLines
-		cloneVariantLines[result.id] = result.cloneVariantLines
-		setVariantLines[result.id] = result.setVariantLines
+		resultLines[result.ID] = result.resultLines
+		tracyStatusLines[result.ID] = result.statusLines
+		segmentLines[result.ID] = result.segmentLines
+		cloneVariantLines[result.ID] = result.cloneVariantLines
+		setVariantLines[result.ID] = result.setVariantLines
 		snvRatios = append(snvRatios, result.SnvRatio)
 		insRatios = append(insRatios, result.InsRatio)
 		delRatios = append(delRatios, result.DelRatio)
+
+		if result.CloneHit == 0 {
+			chemicalSuppList = append(chemicalSuppList, result.Seq)
+		}
 	}
 	meanSnvRatio = lo.Mean(snvRatios)
 	meanInsRatio = lo.Mean(insRatios)
 	meanDelRatio = lo.Mean(delRatios)
 	if meanSnvRatio >= SnvRatio || meanInsRatio >= InsRatio || meanDelRatio >= DelRatio {
 		batchStatus = "不合格"
+	}
+
+	// 化学补充
+	if *fix {
+
+		var (
+			csXlsx  = excelize.NewFile()
+			csSheet = "化补2清单"
+		)
+		csXlsx.SetSheetName("Sheet1", csSheet)
+		csXlsx.SetSheetRow(csSheet, "A1", &[]string{"片段名称", "序列", "长度"})
+		for _, seq := range chemicalSuppList {
+			csXlsx.SetSheetRow(csSheet, "A1", &[]any{seq.ID + "C", seq.Seq, len(seq.Seq)})
+		}
+		csXlsx.SaveAs(filepath.Join(*outputDir, batchName+"-化补2清单"))
 	}
 
 	// 写入 result
@@ -248,7 +276,7 @@ func main() {
 	xlsx.SetSheetRow("片段结果", "A1", &SeqTitle)
 	row = 2
 	for _, id := range segmentList {
-		line := seqLines[id]
+		line := segmentLines[id]
 		xlsx.SetSheetRow("片段结果", fmt.Sprintf("A%d", row), &line)
 		row++
 	}
@@ -350,10 +378,13 @@ func main() {
 }
 
 type tracyResult struct {
-	id                string
+	ID       string
+	Seq      *Seq
+	CloneHit int // 正确克隆个数
+
 	statusLines       [][]any
 	resultLines       [][]any
-	seqLines          []any
+	segmentLines      []any
 	cloneVariantLines [][]any
 	setVariantLines   [][]any
 
@@ -707,13 +738,16 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 	}
 	simpleUtil.CheckErr(out.Close())
 
-	seqLines, vTypePercent := RecordSeq(seq, result, prefix)
+	seqLines, vTypePercent, cloneHit := RecordSeq(seq, result, prefix)
 
 	return tracyResult{
-		id:                id,
+		ID:       id,
+		Seq:      seq,
+		CloneHit: cloneHit,
+
 		statusLines:       GetTracyStatusLines(id, result),
 		resultLines:       RecordSeqPrimer(seq, result, prefix),
-		seqLines:          seqLines,
+		segmentLines:      seqLines,
 		cloneVariantLines: cloneVariantsLines,
 		setVariantLines:   setVariantLines,
 

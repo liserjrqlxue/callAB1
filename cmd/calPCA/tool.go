@@ -345,7 +345,7 @@ var (
 	DelRatio = 0.0551 + 0.2249
 )
 
-func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLine []any, vTypePercent map[string]float64) {
+func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (resultLine []any, vTypePercent map[string]float64, cloneHit int) {
 	out := osUtil.Create(prefix + ".seq.result.txt")
 	defer simpleUtil.DeferClose(out)
 
@@ -496,13 +496,15 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (res
 	if vTypePercent["SNV"] >= SnvRatio || vTypePercent["Insertion"] >= InsRatio || vTypePercent["Deletion"] >= DelRatio {
 		ThresholdDeterminaiton = "不合格"
 	}
+
+	cloneHit = len(selectClones)
 	resultLine = []any{
 		seq.ID,
 		seq.Start, seq.End,
 		length,
 		n,
 		failN,
-		len(selectClones),
+		cloneHit,
 		len(selectHetClones),
 		len(vPosRatio),
 		len(vSet),
