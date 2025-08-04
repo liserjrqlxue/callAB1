@@ -41,7 +41,7 @@ func RunTracy(id, tag, prefix, bin, sangerIndex string, result map[string][2]*tr
 	}
 }
 
-func RunTracyCY0130(id, prefix, bin, path string, result map[string][2]*tracy.Result) {
+func RunTracyCY0130(id, prefix, bin, path string, result map[string][2]*tracy.Result, override bool) {
 	sangerIndex := strings.TrimSuffix(filepath.Base(path), ".ab1")
 	sangerPrefix := fmt.Sprintf("%s_%s", prefix, sangerIndex)
 
@@ -52,7 +52,7 @@ func RunTracyCY0130(id, prefix, bin, path string, result map[string][2]*tracy.Re
 	}
 
 	// run tracy
-	result1, err := tracy.RunSingle(bin, prefix+".fa", path, sangerPrefix, false)
+	result1, err := tracy.RunSingle(bin, prefix+".fa", path, sangerPrefix, override)
 	if err != nil {
 		slog.Error("RunSingle", "id", id, "sangerIndex", sangerIndex, "err", err)
 	}
@@ -71,7 +71,7 @@ func RunTracyBatch(id, prefix, bin string) map[string][2]*tracy.Result {
 }
 
 // 遍历分析sanger文件 -> result
-func RunTracyBatchCy0130(id, prefix, bin string) map[string][2]*tracy.Result {
+func RunTracyBatchCy0130(id, prefix, bin string, override bool) map[string][2]*tracy.Result {
 	result := make(map[string][2]*tracy.Result)
 
 	files := simpleUtil.HandleError(
@@ -83,9 +83,8 @@ func RunTracyBatchCy0130(id, prefix, bin string) map[string][2]*tracy.Result {
 	files = append(files, files2...)
 
 	for _, path := range files {
-		RunTracyCY0130(id, prefix, bin, path, result)
+		RunTracyCY0130(id, prefix, bin, path, result, override)
 	}
-
 	return result
 }
 

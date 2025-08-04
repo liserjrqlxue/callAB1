@@ -64,6 +64,11 @@ var (
 		0,
 		"filter qual < MaxQual",
 	)
+	override = flag.Bool(
+		"w",
+		false,
+		"override tracy result",
+	)
 )
 
 type Seq struct {
@@ -173,7 +178,7 @@ func main() {
 			wg.Add(1)
 			go func(i int, id string) {
 				defer wg.Done()
-				results <- processSeq(i, id, cy0130, renameID, *outputDir, *bin, segmentMap)
+				results <- processSeq(i, id, cy0130, renameID, *outputDir, *bin, segmentMap, *override)
 			}(i, id)
 		}
 	}
@@ -477,7 +482,7 @@ func (v *PosVariantSet) String() string {
 	)
 }
 
-func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin string, seqMap map[string]*Seq) tracyResult {
+func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin string, seqMap map[string]*Seq, override bool) tracyResult {
 	seq := seqMap[id]
 	slog.Info("seq", "index", i+1, "id", seq.ID, "start", seq.Start, "end", seq.End)
 
@@ -486,7 +491,7 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 
 	var result map[string][2]*tracy.Result
 	if cy0130 {
-		result = RunTracyBatchCy0130(renameID, prefix, bin)
+		result = RunTracyBatchCy0130(renameID, prefix, bin, override)
 	} else {
 		result = RunTracyBatch(id, prefix, bin)
 	}
