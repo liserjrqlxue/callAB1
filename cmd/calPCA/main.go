@@ -153,7 +153,6 @@ func main() {
 		rename            = make(map[string]string)
 		resultLines       = make(map[string][][]any)
 		tracyStatusLines  = make(map[string][][]any)
-		segmentLines      = make(map[string][]any) // 片段结果
 		cloneVariantLines = make(map[string][][]any)
 		setVariantLines   = make(map[string][][]any)
 
@@ -210,11 +209,13 @@ func main() {
 	var (
 		ratios     [3][]float64
 		batchVerif = &Verification{Status: "合格"}
+		resultMap  = make(map[string]*tracyResult)
 	)
 	for result := range results {
+		resultMap[result.ID] = &result
+
 		resultLines[result.ID] = result.resultLines
 		tracyStatusLines[result.ID] = result.statusLines
-		segmentLines[result.ID] = result.segmentLines
 		cloneVariantLines[result.ID] = result.cloneVariantLines
 		setVariantLines[result.ID] = result.setVariantLines
 
@@ -236,7 +237,7 @@ func main() {
 	primerACC := addSangerResult(xlsx, sheet, segmentList, resultLines)
 
 	sheet = "片段结果"
-	addSegmentResult(xlsx, sheet, segmentList, segmentLines)
+	addSegmentResult(xlsx, sheet, segmentList, resultMap)
 
 	sheet = "测序结果板位图"
 	AddSequencingResultPlate(xlsx, sheet, geneList, geneMap)

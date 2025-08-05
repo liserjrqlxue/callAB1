@@ -175,14 +175,13 @@ func AddSequencingResultPlate(xlsx *excelize.File, sheet string, geneList []stri
 }
 
 // 添加 片段结果
-func addSegmentResult(xlsx *excelize.File, sheet string, segmentList []string, segmentLines map[string][]any) {
+func addSegmentResult(xlsx *excelize.File, sheet string, segmentList []string, resultMap map[string]*tracyResult) {
 	simpleUtil.HandleError(xlsx.NewSheet(sheet))
 	xlsx.SetSheetRow(sheet, "A1", &SeqTitle)
 
 	var row = 2
 	for _, id := range segmentList {
-		line := segmentLines[id]
-		xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &line)
+		xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &resultMap[id].segmentLines)
 		row++
 	}
 }
