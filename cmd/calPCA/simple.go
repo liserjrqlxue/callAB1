@@ -73,30 +73,14 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 		}
 
 		simpleUtil.CheckErr(listXlsx.SetCellStyle(listSheet, cell1, cell2, bgStyleMap[index%3]))
-		// cellName1 := simpleUtil.HandleError(excelize.CoordinatesToCellName(3+index*2, 6+rowOffset))
-		// cellName2 := simpleUtil.HandleError(excelize.CoordinatesToCellName(3+index*2+1, 13+rowOffset))
-		// simpleUtil.CheckErr(listXlsx.SetCellStyle(plateSheet, cellName1, cellName2, bgStyleMap[index%3]))
-		// log.Printf("%d:%s:%s、%s:%d:%d\n", index, plateSheet, cellName1, cellName2, index%3, bgStyleMap[index%3])
-
-		// fmt.Printf("%s\t%s\t%d\n", seq.Name, string(rune('A'+i*2)), seq.PrimerPairCount)
 		halfBreak := (seq.PrimerPairCount + 1) / 2
 		for j, pair := range seq.SegmentPairs {
-			// row := string(rune('A' + j/halfBreak*4 + j%halfBreak))
-			// fmt.Printf(
-			// 	"\t%d\t%s%d:%s\t%s%d:%s\n",
-			// 	j+1,
-			// 	row, index*2+1,
-			// 	pair.Left.Name,
-			// 	row, index*2+2,
-			// 	pair.Right.Name,
-			// )
 			row := j/halfBreak*4 + j%halfBreak
 
-			cellName1 := simpleUtil.HandleError(excelize.CoordinatesToCellName(3+index*2, row+6+rowOffset))
-			cellName2 := simpleUtil.HandleError(excelize.CoordinatesToCellName(3+index*2+1, row+6+rowOffset))
+			cellName1 := CoordinatesToCellName(3+index*2, row+6+rowOffset)
+			cellName2 := CoordinatesToCellName(3+index*2+1, row+6+rowOffset)
 			listXlsx.SetSheetRow(plateSheet, cellName1, &[]string{pair.Left.Name, pair.Right.Name})
 			simpleUtil.CheckErr(listXlsx.SetCellStyle(plateSheet, cellName1, cellName2, bgStyleMap[index%3]))
-			// log.Printf("%d:%s:%s、%s:%d:%d\n", index, plateSheet, cellName1, cellName2, index%3, bgStyleMap[index%3])
 
 			batch.WritePrimerOrder(
 				orderXlsx, orderSheet,
