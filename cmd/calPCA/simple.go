@@ -12,19 +12,6 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-type SimpleResult struct {
-	Seq  *util.Seq
-	Pass bool
-}
-
-func (sr *SimpleResult) String() string {
-	return fmt.Sprintf(
-		"%s\t%t",
-		sr.Seq.Name,
-		sr.Pass,
-	)
-}
-
 // 化学补充
 func runFix(path string, segmentList []string, segmentMap map[string]*Seq) {
 	var (
