@@ -296,58 +296,7 @@ func main() {
 	}
 
 	if *inputOrder != "" {
-		inputOderXlsx := simpleUtil.HandleError(excelize.OpenFile(*inputOrder))
-		rows := simpleUtil.HandleError(inputOderXlsx.GetRows("拼接引物板"))
-		simpleUtil.HandleError(xlsx.NewSheet("拼接引物板"))
-		for i, row := range rows {
-			for j, cell := range row {
-				xlsx.SetCellValue(
-					"拼接引物板",
-					simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1)),
-					cell,
-				)
-				pID := strings.Split(cell, "\n")[0]
-				accs, ok := primerACC[pID]
-				if ok {
-					xlsx.SetCellValue(
-						"拼接引物板",
-						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)+1)),
-						accs[0],
-					)
-					xlsx.SetCellValue(
-						"拼接引物板",
-						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)*2+2)),
-						accs[1],
-					)
-				} else {
-					xlsx.SetCellValue(
-						"拼接引物板",
-						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)+1)),
-						cell,
-					)
-					xlsx.SetCellValue(
-						"拼接引物板",
-						simpleUtil.HandleError(excelize.CoordinatesToCellName(j+1, i+1+len(rows)*2+2)),
-						cell,
-					)
-				}
-			}
-			xlsx.SetCellValue(
-				"拼接引物板",
-				simpleUtil.HandleError(excelize.CoordinatesToCellName(1, 1)),
-				"板位",
-			)
-			xlsx.SetCellValue(
-				"拼接引物板",
-				simpleUtil.HandleError(excelize.CoordinatesToCellName(1, 1+len(rows)+1)),
-				"平均准确率(%)",
-			)
-			xlsx.SetCellValue(
-				"拼接引物板",
-				simpleUtil.HandleError(excelize.CoordinatesToCellName(1, 1+len(rows)*2+2)),
-				"参考单步准确率(%)",
-			)
-		}
+		addSplicedPrimerPlate(xlsx, *inputOrder, primerACC)
 	}
 
 	sheet = "批次统计"
