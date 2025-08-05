@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
@@ -89,7 +90,6 @@ func (vf *Verification) BatchValidation(snvRatios, insRatios, delRatios []float6
 // 添加 批次统计
 func addBatchStats(xlsx *excelize.File, sheet string, batchVerif *Verification) {
 	simpleUtil.HandleError(xlsx.NewSheet(sheet))
-
 	xlsx.SetSheetRow(sheet, "A1", &BatchTitle)
 
 	xlsx.SetSheetRow(
@@ -107,7 +107,6 @@ func addBatchStats(xlsx *excelize.File, sheet string, batchVerif *Verification) 
 // 添加 变异统计
 func addVariantStats(xlsx *excelize.File, sheet string, segmentList []string, setVariantLines map[string][][]any) {
 	simpleUtil.HandleError(xlsx.NewSheet(sheet))
-
 	xlsx.SetSheetRow(sheet, "A1", &SetVariantTitle)
 
 	var row = 2
@@ -123,7 +122,6 @@ func addVariantStats(xlsx *excelize.File, sheet string, segmentList []string, se
 // 添加 Clone变异结果
 func addCloneVariants(xlsx *excelize.File, sheet string, segmentList []string, cloneVariantLines map[string][][]any) {
 	simpleUtil.HandleError(xlsx.NewSheet(sheet))
-
 	xlsx.SetSheetRow(sheet, "A1", &CloneVariantTitle)
 
 	var row = 2
@@ -136,6 +134,7 @@ func addCloneVariants(xlsx *excelize.File, sheet string, segmentList []string, c
 	}
 }
 
+// 添加 测序结果板位图
 func AddSequencingResultPlate(xlsx *excelize.File, sheet string, geneList []string, geneMap map[string]*Seq) {
 	var (
 		bgColor1 = "#8CDDFA"
@@ -198,6 +197,58 @@ func AddSequencingResultPlate(xlsx *excelize.File, sheet string, geneList []stri
 				xlsx.SetCellStr(sheet, cellName, segment.ID+"-"+segment.rIDs[0])
 				xlsx.SetCellStr(sheet, cellName, segment.ID+"-"+strings.Join(segment.rIDs, "、"))
 			}
+		}
+	}
+}
+
+// 添加 片段结果
+func addSegmentResult(xlsx *excelize.File, sheet string, segmentList []string, segmentLines map[string][]any) {
+	simpleUtil.HandleError(xlsx.NewSheet(sheet))
+	xlsx.SetSheetRow(sheet, "A1", &SeqTitle)
+
+	var row = 2
+	for _, id := range segmentList {
+		line := segmentLines[id]
+		xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &line)
+		row++
+	}
+}
+
+// 添加 Sanger结果
+func addSangerResult(xlsx *excelize.File, sheet string, segmentList []string, resultLines map[string][][]any) (primerACC map[string][2]float64) {
+	primerACC = make(map[string][2]float64)
+
+	simpleUtil.HandleError(xlsx.NewSheet(sheet))
+	xlsx.SetSheetRow(sheet, "A1", &ResultTitle)
+
+	var row = 2
+	for _, id := range segmentList {
+		for _, line := range resultLines[id] {
+			pID := line[1].(string)
+			valid := line[7].(int)
+			acc := line[19].(float64)
+			geomMeanAcc := line[21].(float64)
+
+			if valid > 0 {
+				primerACC[pID] = [2]float64{acc, geomMeanAcc}
+			}
+			xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &line)
+			row++
+		}
+	}
+
+	return
+}
+
+func WriteSliceSheet(xlsx *excelize.File, sheet string, title, list []string, data map[string][][]any) {
+	simpleUtil.HandleError(xlsx.NewSheet(sheet))
+	xlsx.SetSheetRow(sheet, "A1", &title)
+
+	row := 2
+	for _, v := range list {
+		for _, s := range data[v] {
+			xlsx.SetSheetRow(sheet, "A"+strconv.Itoa(row), &s)
+			row++
 		}
 	}
 }

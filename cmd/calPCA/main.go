@@ -230,36 +230,15 @@ func main() {
 	// 写入 tracy result
 	tracyFormat := "%s\t%s\t%d\t%s\t%v\t%d\t%d\t%f\n"
 	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, segmentList, tracyStatusLines)
-	WriteSliceSheet(xlsx, "Sanger统计", tracyStatusTitle, segmentList, tracyStatusLines)
 
-	// 写入 excel
-	simpleUtil.HandleError(xlsx.NewSheet("Sanger结果"))
-	xlsx.SetSheetRow("Sanger结果", "A1", &ResultTitle)
-	primerACC := make(map[string][2]float64)
-	row := 2
-	for _, id := range segmentList {
-		for _, line := range resultLines[id] {
-			pID := line[1].(string)
-			valid := line[7].(int)
-			acc := line[19].(float64)
-			geomMeanAcc := line[21].(float64)
+	sheet = "Sanger统计"
+	WriteSliceSheet(xlsx, sheet, tracyStatusTitle, segmentList, tracyStatusLines)
 
-			if valid > 0 {
-				primerACC[pID] = [2]float64{acc, geomMeanAcc}
-			}
-			xlsx.SetSheetRow("Sanger结果", fmt.Sprintf("A%d", row), &line)
-			row++
-		}
-	}
+	sheet = "Sanger结果"
+	primerACC := addSangerResult(xlsx, sheet, segmentList, resultLines)
 
-	simpleUtil.HandleError(xlsx.NewSheet("片段结果"))
-	xlsx.SetSheetRow("片段结果", "A1", &SeqTitle)
-	row = 2
-	for _, id := range segmentList {
-		line := segmentLines[id]
-		xlsx.SetSheetRow("片段结果", fmt.Sprintf("A%d", row), &line)
-		row++
-	}
+	sheet = "片段结果"
+	addSegmentResult(xlsx, sheet, segmentList, segmentLines)
 
 	sheet = "测序结果板位图"
 	AddSequencingResultPlate(xlsx, sheet, geneList, geneMap)

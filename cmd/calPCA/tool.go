@@ -562,19 +562,6 @@ func WriteSlice(path, format string, title, list []string, data map[string][][]a
 	}
 }
 
-func WriteSliceSheet(xlsx *excelize.File, sheet string, title, list []string, data map[string][][]any) {
-	simpleUtil.HandleError(xlsx.NewSheet(sheet))
-	xlsx.SetSheetRow(sheet, "A1", &title)
-
-	row := 2
-	for _, v := range list {
-		for _, s := range data[v] {
-			xlsx.SetSheetRow(sheet, "A"+strconv.Itoa(row), &s)
-			row++
-		}
-	}
-}
-
 func GetTracyStatusLines(id string, result map[string][2]*tracy.Result) (data [][]any) {
 	for sangerPairIndex, pairResult := range result {
 		for sangerIndex, result := range pairResult {
