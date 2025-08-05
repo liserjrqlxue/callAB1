@@ -19,9 +19,11 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 		listPath  = prefix + "化补2清单.xlsx"
 		orderPath = prefix + "化补2引物订购单.xlsx"
 
-		xlsx   = excelize.NewFile()
-		sheet1 = "化补2清单"
-		sheet2 = "化补2引物板位图"
+		listXlsx    = excelize.NewFile()
+		listSheet   = "化补2清单"
+		plateSheet  = "化补2引物板位图"
+		panelHeight = 13
+		bgStyleMap  = batch.CreateStyles(listXlsx)
 
 		orderXlsx       = simpleUtil.HandleError(excelize.OpenFile(template))
 		orderSheet      = "引物订购单"
@@ -31,16 +33,16 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 		orderRowSkip    = 8
 
 		chemicalSuppList []*util.Seq
-
-		panelHeight = 13
-		index       = -1
+		index            = -1
 	)
 
 	// 化补2清单
-	simpleUtil.HandleError(xlsx.NewSheet(sheet1))
-	xlsx.SetSheetRow(sheet1, "A1", &[]string{"片段名称", "序列", "长度", "设计成功"})
+	simpleUtil.HandleError(listXlsx.NewSheet(listSheet))
+	listXlsx.SetSheetRow(listSheet, "A1", &[]string{"片段名称", "序列", "长度", "设计成功"})
+	listXlsx.SetColWidth(listSheet, "B", "B", 100)
 	// "化补2引物板位图"
-	simpleUtil.HandleError(xlsx.NewSheet(sheet2))
+	simpleUtil.HandleError(listXlsx.NewSheet(plateSheet))
+	listXlsx.SetColWidth(plateSheet, "A", "N", 10)
 
 	for _, id := range segmentList {
 		segment, ok := segmentMap[id]
@@ -54,7 +56,9 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 	for i, seq := range chemicalSuppList {
 		pass := runSimple(seq)
 
-		xlsx.SetSheetRow(sheet1, fmt.Sprintf("A%d", i+2), &[]any{seq.Name, seq.Seq, len(seq.Seq), pass})
+		cell1 := fmt.Sprintf("A%d", i+2)
+		cell2 := fmt.Sprintf("D%d", i+2)
+		listXlsx.SetSheetRow(listSheet, cell1, &[]any{seq.Name, seq.Seq, len(seq.Seq), pass})
 
 		if !pass {
 			continue
@@ -62,7 +66,15 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 		index++
 		panelIndex := index / 6
 		rowOffset := panelIndex * panelHeight
-		panelInit(xlsx, sheet2, rowOffset)
+		if index%6 == 0 {
+			panelInit(listXlsx, plateSheet, rowOffset, bgStyleMap[-1])
+		}
+
+		simpleUtil.CheckErr(listXlsx.SetCellStyle(listSheet, cell1, cell2, bgStyleMap[index%3]))
+		// cellName1 := simpleUtil.HandleError(excelize.CoordinatesToCellName(3+index*2, 6+rowOffset))
+		// cellName2 := simpleUtil.HandleError(excelize.CoordinatesToCellName(3+index*2+1, 13+rowOffset))
+		// simpleUtil.CheckErr(listXlsx.SetCellStyle(plateSheet, cellName1, cellName2, bgStyleMap[index%3]))
+		// log.Printf("%d:%s:%s、%s:%d:%d\n", index, plateSheet, cellName1, cellName2, index%3, bgStyleMap[index%3])
 
 		// fmt.Printf("%s\t%s\t%d\n", seq.Name, string(rune('A'+i*2)), seq.PrimerPairCount)
 		halfBreak := (seq.PrimerPairCount + 1) / 2
@@ -77,8 +89,12 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 			// 	pair.Right.Name,
 			// )
 			row := j/halfBreak*4 + j%halfBreak
-			cellName := simpleUtil.HandleError(excelize.CoordinatesToCellName(3+index*2, row+6+rowOffset))
-			xlsx.SetSheetRow(sheet2, cellName, &[]string{pair.Left.Name, pair.Right.Name})
+
+			cellName1 := simpleUtil.HandleError(excelize.CoordinatesToCellName(3+index*2, row+6+rowOffset))
+			cellName2 := simpleUtil.HandleError(excelize.CoordinatesToCellName(3+index*2+1, row+6+rowOffset))
+			listXlsx.SetSheetRow(plateSheet, cellName1, &[]string{pair.Left.Name, pair.Right.Name})
+			simpleUtil.CheckErr(listXlsx.SetCellStyle(plateSheet, cellName1, cellName2, bgStyleMap[index%3]))
+			// log.Printf("%d:%s:%s、%s:%d:%d\n", index, plateSheet, cellName1, cellName2, index%3, bgStyleMap[index%3])
 
 			batch.WritePrimerOrder(
 				orderXlsx, orderSheet,
@@ -94,9 +110,9 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 		}
 	}
 
-	simpleUtil.CheckErr(xlsx.DeleteSheet("Sheet1"))
+	simpleUtil.CheckErr(listXlsx.DeleteSheet("Sheet1"))
 	log.Printf("SaveAs(%s)", listPath)
-	simpleUtil.CheckErr(xlsx.SaveAs(listPath))
+	simpleUtil.CheckErr(listXlsx.SaveAs(listPath))
 
 	log.Printf("SaveAs(%s)", orderPath)
 	simpleUtil.CheckErr(orderXlsx.SaveAs(orderPath))
@@ -131,7 +147,7 @@ func runSimple(seq *util.Seq) (status bool) {
 	return true
 }
 
-func panelInit(xlsx *excelize.File, sheet string, rowOffset int) {
+func panelInit(xlsx *excelize.File, sheet string, rowOffset, styleID int) {
 	var ()
 	// "化补2引物板位图"
 	simpleUtil.HandleError(xlsx.NewSheet(sheet))
@@ -150,4 +166,6 @@ func panelInit(xlsx *excelize.File, sheet string, rowOffset int) {
 		fmt.Sprintf("C%d", 5+rowOffset),
 		&[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
 	)
+
+	simpleUtil.CheckErr(xlsx.SetCellStyle(sheet, fmt.Sprintf("B%d", 5+rowOffset), fmt.Sprintf("N%d", 13+rowOffset), styleID))
 }
