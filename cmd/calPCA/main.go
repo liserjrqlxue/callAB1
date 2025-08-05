@@ -90,6 +90,8 @@ type Seq struct {
 	SubSeq []*Seq `json:"subSeq"`
 
 	rIDs []string
+
+	CloneHit int // 正确克隆个数
 }
 
 func (s *Seq) CreateSub(id string, start, end int) *Seq {
@@ -155,7 +157,9 @@ func main() {
 		geneMap, geneList       = LoadRawSequence(xlsx, "原始序列")
 		segmentMap, segmentList = LoadSegmentSequence(xlsx, "分段序列", geneMap)
 
-		batchName = strings.TrimSuffix(filepath.Base(*input), ".自合.xlsx")
+		batchName    = strings.TrimSuffix(filepath.Base(*input), "自合.xlsx")
+		csResult     = filepath.Join(*outputDir, batchName+"化补2清单.xlsx")
+		sangerResult = *outputDir + ".Sanger结果.xlsx"
 	)
 
 	LoadPrimerPairSequence(xlsx, "引物对序列", segmentMap)
@@ -205,7 +209,7 @@ func main() {
 		meanDelRatio float64
 		batchStatus  = "合格"
 		// List of chemical supplements
-		chemicalSuppList []*Seq
+		chemicalSuppMap = make(map[string]*Seq)
 	)
 	for result := range results {
 		resultLines[result.ID] = result.resultLines
@@ -218,7 +222,7 @@ func main() {
 		delRatios = append(delRatios, result.DelRatio)
 
 		if result.CloneHit == 0 {
-			chemicalSuppList = append(chemicalSuppList, result.Seq)
+			chemicalSuppMap[result.Seq.ID] = result.Seq
 		}
 	}
 	meanSnvRatio = lo.Mean(snvRatios)
@@ -226,21 +230,6 @@ func main() {
 	meanDelRatio = lo.Mean(delRatios)
 	if meanSnvRatio >= SnvRatio || meanInsRatio >= InsRatio || meanDelRatio >= DelRatio {
 		batchStatus = "不合格"
-	}
-
-	// 化学补充
-	if *fix {
-
-		var (
-			csXlsx  = excelize.NewFile()
-			csSheet = "化补2清单"
-		)
-		csXlsx.SetSheetName("Sheet1", csSheet)
-		csXlsx.SetSheetRow(csSheet, "A1", &[]string{"片段名称", "序列", "长度"})
-		for _, seq := range chemicalSuppList {
-			csXlsx.SetSheetRow(csSheet, "A1", &[]any{seq.ID + "C", seq.Seq, len(seq.Seq)})
-		}
-		csXlsx.SaveAs(filepath.Join(*outputDir, batchName+"-化补2清单"))
 	}
 
 	// 写入 result
@@ -373,8 +362,13 @@ func main() {
 		},
 	)
 
-	xlsx.SaveAs(*outputDir + ".Sanger结果.xlsx")
+	log.Printf("SaveAs(%s)", sangerResult)
+	simpleUtil.CheckErr(xlsx.SaveAs(sangerResult))
 
+	// 化学补充
+	if *fix {
+		runFix(csResult, segmentList, chemicalSuppMap)
+	}
 }
 
 type tracyResult struct {
@@ -738,12 +732,12 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 	}
 	simpleUtil.CheckErr(out.Close())
 
-	seqLines, vTypePercent, cloneHit := RecordSeq(seq, result, prefix)
+	seqLines, vTypePercent := RecordSeq(seq, result, prefix)
 
 	return tracyResult{
 		ID:       id,
 		Seq:      seq,
-		CloneHit: cloneHit,
+		CloneHit: seq.CloneHit,
 
 		statusLines:       GetTracyStatusLines(id, result),
 		resultLines:       RecordSeqPrimer(seq, result, prefix),
