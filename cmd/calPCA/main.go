@@ -208,13 +208,8 @@ func main() {
 	}()
 
 	var (
-		snvRatios    []float64
-		insRatios    []float64
-		delRatios    []float64
-		meanSnvRatio float64
-		meanInsRatio float64
-		meanDelRatio float64
-		batchStatus  = "合格"
+		ratios     [3][]float64
+		batchVerif = &Verification{Status: "合格"}
 	)
 	for result := range results {
 		resultLines[result.ID] = result.resultLines
@@ -222,15 +217,10 @@ func main() {
 		segmentLines[result.ID] = result.segmentLines
 		cloneVariantLines[result.ID] = result.cloneVariantLines
 		setVariantLines[result.ID] = result.setVariantLines
-		snvRatios = append(snvRatios, result.SnvRatio)
-		insRatios = append(insRatios, result.InsRatio)
-		delRatios = append(delRatios, result.DelRatio)
-	}
-	meanSnvRatio = lo.Mean(snvRatios)
-	meanInsRatio = lo.Mean(insRatios)
-	meanDelRatio = lo.Mean(delRatios)
-	if meanSnvRatio >= SnvRatio || meanInsRatio >= InsRatio || meanDelRatio >= DelRatio {
-		batchStatus = "不合格"
+
+		ratios[0] = append(ratios[0], result.SnvRatio)
+		ratios[1] = append(ratios[1], result.InsRatio)
+		ratios[2] = append(ratios[2], result.DelRatio)
 	}
 
 	// 写入 result
@@ -295,22 +285,15 @@ func main() {
 		}
 	}
 
+	// 拼接引物板
 	if *inputOrder != "" {
-		addSplicedPrimerPlate(xlsx, *inputOrder, primerACC)
+		sheet = "拼接引物板"
+		addSplicedPrimerPlate(xlsx, sheet, *inputOrder, primerACC)
 	}
 
 	sheet = "批次统计"
-	simpleUtil.HandleError(xlsx.NewSheet(sheet))
-	xlsx.SetSheetRow(sheet, "A1", &BatchTitle)
-	xlsx.SetSheetRow(
-		sheet, "A2",
-		&[]any{
-			meanSnvRatio,
-			meanInsRatio,
-			meanDelRatio,
-			batchStatus,
-		},
-	)
+	batchVerif.BatchValidation(ratios[0], ratios[1], ratios[2])
+	addBatchStats(xlsx, sheet, batchVerif)
 
 	log.Printf("SaveAs(%s)", sangerResult)
 	simpleUtil.CheckErr(xlsx.SaveAs(sangerResult))
