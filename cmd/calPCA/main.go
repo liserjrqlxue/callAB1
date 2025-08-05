@@ -208,8 +208,6 @@ func main() {
 		meanInsRatio float64
 		meanDelRatio float64
 		batchStatus  = "合格"
-		// List of chemical supplements
-		chemicalSuppMap = make(map[string]*Seq)
 	)
 	for result := range results {
 		resultLines[result.ID] = result.resultLines
@@ -220,10 +218,6 @@ func main() {
 		snvRatios = append(snvRatios, result.SnvRatio)
 		insRatios = append(insRatios, result.InsRatio)
 		delRatios = append(delRatios, result.DelRatio)
-
-		if result.CloneHit == 0 {
-			chemicalSuppMap[result.Seq.ID] = result.Seq
-		}
 	}
 	meanSnvRatio = lo.Mean(snvRatios)
 	meanInsRatio = lo.Mean(insRatios)
@@ -367,14 +361,13 @@ func main() {
 
 	// 化学补充
 	if *fix {
-		runFix(csResult, segmentList, chemicalSuppMap)
+		runFix(csResult, segmentList, segmentMap)
 	}
 }
 
 type tracyResult struct {
-	ID       string
-	Seq      *Seq
-	CloneHit int // 正确克隆个数
+	ID  string
+	Seq *Seq
 
 	statusLines       [][]any
 	resultLines       [][]any
@@ -735,9 +728,8 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 	seqLines, vTypePercent := RecordSeq(seq, result, prefix)
 
 	return tracyResult{
-		ID:       id,
-		Seq:      seq,
-		CloneHit: seq.CloneHit,
+		ID:  id,
+		Seq: seq,
 
 		statusLines:       GetTracyStatusLines(id, result),
 		resultLines:       RecordSeqPrimer(seq, result, prefix),
