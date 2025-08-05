@@ -9,15 +9,17 @@ import (
 
 	"github.com/liserjrqlxue/DNA/pkg/util"
 	"github.com/liserjrqlxue/PrimerDesigner/v2/pkg/batch"
+	"github.com/liserjrqlxue/PrimerDesigner/v2/pkg/cy0130"
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 	"github.com/xuri/excelize/v2"
 )
 
 // 化学补充
 func runFix(prefix, template string, segmentList []string, segmentMap map[string]*Seq) {
+	prefix = simpleUtil.HandleError(filepath.Abs(prefix))
 	var (
-		listPath  = prefix + "化补2清单.xlsx"
-		orderPath = prefix + "化补2引物订购单.xlsx"
+		listPath  = prefix + "-化补2清单.xlsx"
+		orderPath = prefix + "-化补2引物订购单.xlsx"
 
 		listXlsx    = excelize.NewFile()
 		listSheet   = "化补2清单"
@@ -116,6 +118,16 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 
 	log.Printf("SaveAs(%s)", orderPath)
 	simpleUtil.CheckErr(orderXlsx.SaveAs(orderPath))
+
+	// zip
+	var baseName = filepath.Base(prefix)
+	var patterns = []string{
+		baseName + ".Sanger结果.xlsx",
+		baseName + "-化补2清单.xlsx",
+		baseName + "-化补2引物订购单.xlsx",
+	}
+	simpleUtil.CheckErr(cy0130.CompressArchive(filepath.Dir(prefix), prefix+".calPCA.zip", patterns))
+
 }
 
 func runSimple(seq *util.Seq) (status bool) {

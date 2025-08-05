@@ -164,9 +164,9 @@ func main() {
 		segmentMap, segmentList = LoadSegmentSequence(xlsx, "分段序列", geneMap)
 
 		sangerResult = *outputDir + ".Sanger结果.xlsx"
-		batchName    = strings.TrimSuffix(filepath.Base(*input), "自合.xlsx")
-		csPrefix     = filepath.Join(filepath.Dir(*outputDir), batchName)
-		template     = filepath.Join(exPath, "AZENTA.xlsx")
+		// batchName    = strings.TrimSuffix(filepath.Base(*input), "自合.xlsx")
+		// csPrefix     = filepath.Join(filepath.Dir(*outputDir), batchName)
+		template = filepath.Join(exPath, "AZENTA.xlsx")
 	)
 
 	LoadPrimerPairSequence(xlsx, "引物对序列", segmentMap)
@@ -368,7 +368,7 @@ func main() {
 
 	// 化学补充
 	if *fix {
-		runFix(csPrefix, template, segmentList, segmentMap)
+		runFix(*outputDir, template, segmentList, segmentMap)
 	}
 }
 
