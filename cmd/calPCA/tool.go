@@ -798,21 +798,14 @@ func AddSequencingResultPlate(xlsx *excelize.File, sheet string, geneList []stri
 		xlsx.SetCellInt(sheet, fmt.Sprintf("C%d", 4+i*2), len(gene.SubSeq))
 
 		for j, segment := range gene.SubSeq {
-			cellName := simpleUtil.HandleError(excelize.CoordinatesToCellName(19+j, 4+i*2))
+			cellName := simpleUtil.HandleError(excelize.CoordinatesToCellName(19+j, 4+i))
 			xlsx.SetCellInt(sheet, cellName, segment.End-segment.Start)
-			cellName = simpleUtil.HandleError(excelize.CoordinatesToCellName(19+j, 4+i*2+1))
-			xlsx.SetCellInt(sheet, cellName, segment.End-segment.Start)
-			cellName = simpleUtil.HandleError(excelize.CoordinatesToCellName(5+j, 4+i*2))
+			cellName = simpleUtil.HandleError(excelize.CoordinatesToCellName(5+j, 4+i))
 			xlsx.SetCellStr(sheet, cellName, "N")
 			xlsx.SetCellStyle(sheet, cellName, cellName, style3)
 			if len(segment.rIDs) > 0 {
 				xlsx.SetCellStr(sheet, cellName, segment.ID+"-"+segment.rIDs[0])
-			}
-			cellName = simpleUtil.HandleError(excelize.CoordinatesToCellName(5+j, 4+i*2+1))
-			xlsx.SetCellStr(sheet, cellName, "N")
-			xlsx.SetCellStyle(sheet, cellName, cellName, style3)
-			if len(segment.rIDs) > 1 {
-				xlsx.SetCellStr(sheet, cellName, segment.ID+"-"+strings.Join(segment.rIDs[1:], "、"))
+				xlsx.SetCellStr(sheet, cellName, segment.ID+"-"+strings.Join(segment.rIDs, "、"))
 			}
 		}
 	}
