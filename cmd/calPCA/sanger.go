@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/liserjrqlxue/goUtil/fmtUtil"
+	"github.com/liserjrqlxue/goUtil/osUtil"
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 	"github.com/samber/lo"
 	"github.com/xuri/excelize/v2"
@@ -221,4 +224,35 @@ func WriteSliceSheet(xlsx *excelize.File, sheet string, list, title []string, da
 			row++
 		}
 	}
+}
+
+func WriteSlice(path, format string, list, title []string, data map[string][][]any) {
+	resultFile := osUtil.Create(path)
+	defer simpleUtil.DeferClose(resultFile)
+
+	fmtUtil.FprintStringArray(resultFile, title, "\t")
+	for _, v := range list {
+		for _, s := range data[v] {
+			fmtUtil.Fprintf(resultFile, format, s...)
+		}
+	}
+}
+
+// 写入 TracyResult.txt
+func WriteTracyResult(outDir string, list, title []string, data map[string][][]any) {
+	var (
+		path   = filepath.Join(outDir, "TracyResult.txt")
+		format = "%s\t%s\t%d\t%s\t%v\t%d\t%d\t%f\n"
+	)
+	WriteSlice(path, format, list, title, data)
+}
+
+// 写入 Result.txt
+func WriteResult(outDir string, list, title []string, data map[string][][]any) {
+	var (
+		path   = filepath.Join(outDir, "Result.txt")
+		format = "%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\n"
+	)
+	WriteSlice(path, format, list, title, data)
+
 }

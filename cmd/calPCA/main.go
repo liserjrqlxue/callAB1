@@ -223,13 +223,11 @@ func main() {
 		ratios[2] = append(ratios[2], result.DelRatio)
 	}
 
-	// 写入 result
-	resultFormat := "%s\t%s\t%3d-%3d\t%3d-%3d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%4.f%%\t%.4f%%\t%.4f%%\t%.4f%%\n"
-	WriteSlice(filepath.Join(*outputDir, "Result.txt"), resultFormat, ResultTitle, segmentList, resultLines)
+	// 写入 Result.txt
+	WriteResult(*outputDir, segmentList, ResultTitle, resultLines)
 
-	// 写入 tracy result
-	tracyFormat := "%s\t%s\t%d\t%s\t%v\t%d\t%d\t%f\n"
-	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, segmentList, tracyStatusLines)
+	// 写入 TracyResult.txt
+	WriteTracyResult(*outputDir, segmentList, tracyStatusTitle, tracyStatusLines)
 
 	sheet = "Sanger统计"
 	WriteSliceSheet(xlsx, sheet, segmentList, tracyStatusTitle, tracyStatusLines)

@@ -550,18 +550,6 @@ func WriteResultTxt(path string, title, lines []string) {
 	fmtUtil.FprintStringArray(resultFile, lines, "\n")
 }
 
-func WriteSlice(path, format string, title, list []string, data map[string][][]any) {
-	resultFile := osUtil.Create(path)
-	defer simpleUtil.DeferClose(resultFile)
-
-	fmtUtil.FprintStringArray(resultFile, title, "\t")
-	for _, v := range list {
-		for _, s := range data[v] {
-			fmtUtil.Fprintf(resultFile, format, s...)
-		}
-	}
-}
-
 func GetTracyStatusLines(id string, result map[string][2]*tracy.Result) (data [][]any) {
 	for sangerPairIndex, pairResult := range result {
 		for sangerIndex, result := range pairResult {
