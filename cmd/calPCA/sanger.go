@@ -104,36 +104,6 @@ func addBatchStats(xlsx *excelize.File, sheet string, batchVerif *Verification) 
 
 }
 
-// 添加 变异统计
-func addVariantStats(xlsx *excelize.File, sheet string, segmentList []string, setVariantLines map[string][][]any) {
-	simpleUtil.HandleError(xlsx.NewSheet(sheet))
-	xlsx.SetSheetRow(sheet, "A1", &SetVariantTitle)
-
-	var row = 2
-	for _, id := range segmentList {
-		lines := setVariantLines[id]
-		for _, line := range lines {
-			xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &line)
-			row++
-		}
-	}
-}
-
-// 添加 Clone变异结果
-func addCloneVariants(xlsx *excelize.File, sheet string, segmentList []string, cloneVariantLines map[string][][]any) {
-	simpleUtil.HandleError(xlsx.NewSheet(sheet))
-	xlsx.SetSheetRow(sheet, "A1", &CloneVariantTitle)
-
-	var row = 2
-	for _, id := range segmentList {
-		lines := cloneVariantLines[id]
-		for _, line := range lines {
-			xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &line)
-			row++
-		}
-	}
-}
-
 // 添加 测序结果板位图
 func AddSequencingResultPlate(xlsx *excelize.File, sheet string, geneList []string, geneMap map[string]*Seq) {
 	var (
@@ -240,7 +210,7 @@ func addSangerResult(xlsx *excelize.File, sheet string, segmentList []string, re
 	return
 }
 
-func WriteSliceSheet(xlsx *excelize.File, sheet string, title, list []string, data map[string][][]any) {
+func WriteSliceSheet(xlsx *excelize.File, sheet string, list, title []string, data map[string][][]any) {
 	simpleUtil.HandleError(xlsx.NewSheet(sheet))
 	xlsx.SetSheetRow(sheet, "A1", &title)
 

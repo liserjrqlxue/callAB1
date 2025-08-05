@@ -232,7 +232,7 @@ func main() {
 	WriteSlice(filepath.Join(*outputDir, "TracyResult.txt"), tracyFormat, tracyStatusTitle, segmentList, tracyStatusLines)
 
 	sheet = "Sanger统计"
-	WriteSliceSheet(xlsx, sheet, tracyStatusTitle, segmentList, tracyStatusLines)
+	WriteSliceSheet(xlsx, sheet, segmentList, tracyStatusTitle, tracyStatusLines)
 
 	sheet = "Sanger结果"
 	primerACC := addSangerResult(xlsx, sheet, segmentList, resultLines)
@@ -244,10 +244,10 @@ func main() {
 	AddSequencingResultPlate(xlsx, sheet, geneList, geneMap)
 
 	sheet = "Clone变异结果"
-	addCloneVariants(xlsx, sheet, segmentList, cloneVariantLines)
+	WriteSliceSheet(xlsx, sheet, segmentList, CloneVariantTitle, cloneVariantLines)
 
 	sheet = "变异统计"
-	addVariantStats(xlsx, sheet, segmentList, setVariantLines)
+	WriteSliceSheet(xlsx, sheet, segmentList, SetVariantTitle, setVariantLines)
 
 	// 拼接引物板
 	if *inputOrder != "" {
