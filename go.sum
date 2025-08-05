@@ -1,5 +1,7 @@
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/liserjrqlxue/DNA v0.1.12 h1:wVKINwChTzWquo5gDJIYzHZSuLdze3nvwQFzPYfvuOU=
+github.com/liserjrqlxue/DNA v0.1.12/go.mod h1:ox5iZlpIpRMbWekhbf65rdoRPnLtt+Kxoag2WUfGq/o=
 github.com/liserjrqlxue/goUtil v0.2.1 h1:voDOTUaJl+0ctPSk+Ybz7Ulk6JHErnokFMRy5D3XZ5c=
 github.com/liserjrqlxue/goUtil v0.2.1/go.mod h1:HpRbioiKXuFLSZLc/FboWjarrUfaQ90AB/zIaDv4p5g=
 github.com/liserjrqlxue/version v1.1.1 h1:/yKWKzN37uo7+e3ttyBcnybt67dY1e98pakzsZeC2WE=
