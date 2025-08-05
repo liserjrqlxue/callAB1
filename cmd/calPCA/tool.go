@@ -793,9 +793,9 @@ func AddSequencingResultPlate(xlsx *excelize.File, sheet string, geneList []stri
 
 	for i, geneID := range geneList {
 		gene := geneMap[geneID]
-		xlsx.SetCellStr(sheet, fmt.Sprintf("A%d", 4+i*2), geneID)
-		xlsx.SetCellStr(sheet, fmt.Sprintf("B%d", 4+i*2), fmt.Sprintf("%dbp", len(gene.Seq)))
-		xlsx.SetCellInt(sheet, fmt.Sprintf("C%d", 4+i*2), len(gene.SubSeq))
+		xlsx.SetCellStr(sheet, fmt.Sprintf("A%d", 4+i), geneID)
+		xlsx.SetCellStr(sheet, fmt.Sprintf("B%d", 4+i), fmt.Sprintf("%dbp", len(gene.Seq)))
+		xlsx.SetCellInt(sheet, fmt.Sprintf("C%d", 4+i), len(gene.SubSeq))
 
 		for j, segment := range gene.SubSeq {
 			cellName := simpleUtil.HandleError(excelize.CoordinatesToCellName(19+j, 4+i))
