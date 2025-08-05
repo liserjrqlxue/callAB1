@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
@@ -101,4 +102,102 @@ func addBatchStats(xlsx *excelize.File, sheet string, batchVerif *Verification) 
 		},
 	)
 
+}
+
+// 添加 变异统计
+func addVariantStats(xlsx *excelize.File, sheet string, segmentList []string, setVariantLines map[string][][]any) {
+	simpleUtil.HandleError(xlsx.NewSheet(sheet))
+
+	xlsx.SetSheetRow(sheet, "A1", &SetVariantTitle)
+
+	var row = 2
+	for _, id := range segmentList {
+		lines := setVariantLines[id]
+		for _, line := range lines {
+			xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &line)
+			row++
+		}
+	}
+}
+
+// 添加 Clone变异结果
+func addCloneVariants(xlsx *excelize.File, sheet string, segmentList []string, cloneVariantLines map[string][][]any) {
+	simpleUtil.HandleError(xlsx.NewSheet(sheet))
+
+	xlsx.SetSheetRow(sheet, "A1", &CloneVariantTitle)
+
+	var row = 2
+	for _, id := range segmentList {
+		lines := cloneVariantLines[id]
+		for _, line := range lines {
+			xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &line)
+			row++
+		}
+	}
+}
+
+func AddSequencingResultPlate(xlsx *excelize.File, sheet string, geneList []string, geneMap map[string]*Seq) {
+	var (
+		bgColor1 = "#8CDDFA"
+		bgColor2 = "#FFC000"
+		bgColor3 = "#FFD966"
+
+		bgStyle1 = &excelize.Style{
+			Fill: excelize.Fill{
+				Type:    "pattern",
+				Color:   []string{bgColor1},
+				Pattern: 1,
+			},
+		}
+		bgStyle2 = &excelize.Style{
+			Fill: excelize.Fill{
+				Type:    "pattern",
+				Color:   []string{bgColor2},
+				Pattern: 1,
+			},
+		}
+		bgStyle3 = &excelize.Style{
+			Fill: excelize.Fill{
+				Type:    "pattern",
+				Color:   []string{bgColor3},
+				Pattern: 1,
+			},
+		}
+
+		style1 = simpleUtil.HandleError(xlsx.NewStyle(bgStyle1))
+		style2 = simpleUtil.HandleError(xlsx.NewStyle(bgStyle2))
+		style3 = simpleUtil.HandleError(xlsx.NewStyle(bgStyle3))
+	)
+
+	simpleUtil.HandleError(xlsx.NewSheet(sheet))
+	xlsx.SetSheetRow(sheet, "A3", &[]string{"基因名称", "长度", "节数"})
+	xlsx.SetSheetRow(sheet, "E3", &PlateCols)
+	xlsx.SetSheetRow(sheet, "S3", &PlateCols)
+	xlsx.SetCellStr(sheet, "D2", "批次号")
+	xlsx.SetSheetCol(sheet, "D4", &PlateRows)
+	xlsx.SetCellStr(sheet, "R2", "批次号")
+	xlsx.SetSheetCol(sheet, "R4", &PlateRows)
+	xlsx.SetCellStyle(sheet, "B4", "D11", style1)
+	xlsx.SetCellStyle(sheet, "R4", "R11", style1)
+	xlsx.SetCellStyle(sheet, "E3", "P3", style2)
+	xlsx.SetCellStyle(sheet, "S3", "AD3", style2)
+
+	for i, geneID := range geneList {
+		gene := geneMap[geneID]
+		xlsx.SetCellStr(sheet, fmt.Sprintf("A%d", 4+i), geneID)
+		xlsx.SetCellStr(sheet, fmt.Sprintf("B%d", 4+i), fmt.Sprintf("%dbp", len(gene.Seq)))
+		xlsx.SetCellInt(sheet, fmt.Sprintf("C%d", 4+i), len(gene.SubSeq))
+
+		for j, segment := range gene.SubSeq {
+			cellName := CoordinatesToCellName(19+j, 4+i)
+			xlsx.SetCellInt(sheet, cellName, segment.End-segment.Start)
+			cellName = CoordinatesToCellName(5+j, 4+i)
+			xlsx.SetCellStr(sheet, cellName, "N")
+			xlsx.SetCellStyle(sheet, cellName, cellName, style3)
+			if len(segment.rIDs) > 0 {
+				xlsx.SetCellStr(sheet, cellName, segment.ID+"-"+segment.rIDs[0])
+				xlsx.SetCellStr(sheet, cellName, segment.ID+"-"+strings.Join(segment.rIDs, "、"))
+			}
+		}
+	}
 }

@@ -261,29 +261,14 @@ func main() {
 		row++
 	}
 
-	AddSequencingResultPlate(xlsx, "测序结果板位图", geneList, geneMap)
+	sheet = "测序结果板位图"
+	AddSequencingResultPlate(xlsx, sheet, geneList, geneMap)
 
-	simpleUtil.HandleError(xlsx.NewSheet("Clone变异结果"))
-	xlsx.SetSheetRow("Clone变异结果", "A1", &CloneVariantTitle)
-	row = 2
-	for _, id := range segmentList {
-		lines := cloneVariantLines[id]
-		for _, line := range lines {
-			xlsx.SetSheetRow("Clone变异结果", fmt.Sprintf("A%d", row), &line)
-			row++
-		}
-	}
+	sheet = "Clone变异结果"
+	addCloneVariants(xlsx, sheet, segmentList, cloneVariantLines)
 
-	simpleUtil.HandleError(xlsx.NewSheet("变异统计"))
-	xlsx.SetSheetRow("变异统计", "A1", &SetVariantTitle)
-	row = 2
-	for _, id := range segmentList {
-		lines := setVariantLines[id]
-		for _, line := range lines {
-			xlsx.SetSheetRow("变异统计", fmt.Sprintf("A%d", row), &line)
-			row++
-		}
-	}
+	sheet = "变异统计"
+	addVariantStats(xlsx, sheet, segmentList, setVariantLines)
 
 	// 拼接引物板
 	if *inputOrder != "" {
