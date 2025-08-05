@@ -3,9 +3,10 @@ module callAB1
 go 1.23.4
 
 require (
-	github.com/liserjrqlxue/goUtil v0.2.1
+	github.com/liserjrqlxue/PrimerDesigner/v2 v2.7.1
+	github.com/liserjrqlxue/goUtil v0.2.2
 	github.com/liserjrqlxue/version v1.1.1
-	github.com/samber/lo v1.49.1
+	github.com/samber/lo v1.51.0
 	github.com/xuri/excelize/v2 v2.9.0
 )
 

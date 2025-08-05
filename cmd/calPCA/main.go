@@ -22,6 +22,12 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// os
+var (
+	ex, _  = os.Executable()
+	exPath = filepath.Dir(ex)
+)
+
 // flag
 var (
 	input = flag.String(
@@ -157,9 +163,10 @@ func main() {
 		geneMap, geneList       = LoadRawSequence(xlsx, "原始序列")
 		segmentMap, segmentList = LoadSegmentSequence(xlsx, "分段序列", geneMap)
 
-		batchName    = strings.TrimSuffix(filepath.Base(*input), "自合.xlsx")
-		csResult     = filepath.Join(*outputDir, batchName+"化补2清单.xlsx")
 		sangerResult = *outputDir + ".Sanger结果.xlsx"
+		batchName    = strings.TrimSuffix(filepath.Base(*input), "自合.xlsx")
+		csPrefix     = filepath.Join(filepath.Dir(*outputDir), batchName)
+		template     = filepath.Join(exPath, "AZENTA.xlsx")
 	)
 
 	LoadPrimerPairSequence(xlsx, "引物对序列", segmentMap)
@@ -361,7 +368,7 @@ func main() {
 
 	// 化学补充
 	if *fix {
-		runFix(csResult, segmentList, segmentMap)
+		runFix(csPrefix, template, segmentList, segmentMap)
 	}
 }
 
