@@ -181,7 +181,10 @@ func addSegmentResult(xlsx *excelize.File, sheet string, segmentList []string, r
 
 	var row = 2
 	for _, id := range segmentList {
-		xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &resultMap[id].segmentLines)
+		result, ok := resultMap[id]
+		if ok && result != nil {
+			xlsx.SetSheetRow(sheet, fmt.Sprintf("A%d", row), &result.segmentLines)
+		}
 		row++
 	}
 }
