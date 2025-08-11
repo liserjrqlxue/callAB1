@@ -494,7 +494,7 @@ func RecordSeq(seq *Seq, result map[string][2]*tracy.Result, prefix string) (
 		}
 	}
 
-	if vTypePercent["SNV"] >= SnvRatio || vTypePercent["Insertion"] >= InsRatio || vTypePercent["Deletion"] >= DelRatio {
+	if len(selectClones) == 0 || vTypePercent["SNV"] >= SnvRatio || vTypePercent["Insertion"] >= InsRatio || vTypePercent["Deletion"] >= DelRatio {
 		ThresholdDeterminaiton = "不合格"
 	}
 
