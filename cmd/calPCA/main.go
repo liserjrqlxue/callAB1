@@ -207,7 +207,6 @@ func main() {
 	}()
 
 	var (
-		ratios     [3][]float64
 		batchVerif = &Verification{Status: "合格"}
 		resultMap  = make(map[string]*tracyResult)
 	)
@@ -219,10 +218,14 @@ func main() {
 		cloneVariantLines[result.ID] = result.cloneVariantLines
 		setVariantLines[result.ID] = result.setVariantLines
 
-		ratios[0] = append(ratios[0], result.SnvRatio)
-		ratios[1] = append(ratios[1], result.InsRatio)
-		ratios[2] = append(ratios[2], result.DelRatio)
+		batchVerif.EffectiveClone += result.EffectiveClone
+		if result.EffectiveClone > 0 {
+			batchVerif.SnvRatios = append(batchVerif.SnvRatios, result.SnvRatio)
+			batchVerif.InsRatios = append(batchVerif.InsRatios, result.InsRatio)
+			batchVerif.DelRatios = append(batchVerif.DelRatios, result.DelRatio)
+		}
 	}
+	batchVerif.BatchValidation()
 
 	// 写入 Result.txt
 	WriteResult(*outputDir, segmentList, ResultTitle, resultLines)
@@ -255,7 +258,6 @@ func main() {
 	}
 
 	sheet = "批次统计"
-	batchVerif.BatchValidation(ratios[0], ratios[1], ratios[2])
 	addBatchStats(xlsx, sheet, batchVerif)
 
 	log.Printf("SaveAs(%s)", sangerResult)
@@ -278,9 +280,10 @@ type tracyResult struct {
 	setVariantLines   [][]any
 
 	// (%)
-	SnvRatio float64
-	InsRatio float64
-	DelRatio float64
+	SnvRatio       float64
+	InsRatio       float64
+	DelRatio       float64
+	EffectiveClone int
 }
 
 type Variant struct {
@@ -639,8 +642,9 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 		cloneVariantLines: cloneVariantsLines,
 		setVariantLines:   setVariantLines,
 
-		SnvRatio: vTypePercent["SNV"],
-		InsRatio: vTypePercent["Insertion"],
-		DelRatio: vTypePercent["Deletion"],
+		SnvRatio:       vTypePercent["SNV"],
+		InsRatio:       vTypePercent["Insertion"],
+		DelRatio:       vTypePercent["Deletion"],
+		EffectiveClone: clonePass,
 	}
 }

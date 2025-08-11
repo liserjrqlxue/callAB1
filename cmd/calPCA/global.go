@@ -2,6 +2,7 @@ package main
 
 var (
 	BatchTitle = []string{
+		"有效克隆个数",
 		"平均SNV比率(%)",
 		"平均INS比率(%)",
 		"平均DEL比率(%)",
