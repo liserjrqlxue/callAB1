@@ -74,7 +74,14 @@ func addSplicedPrimerPlate(xlsx *excelize.File, sheet, path string, primerACC ma
 }
 
 type Verification struct {
-	EffectiveClone int
+	BatchName string
+
+	TotalSegment        int
+	EffectiveSegment    int
+	TotalClone          int
+	EffectiveClone      int
+	HighFrequencyVarint int
+	SequencingDeletion  int
 
 	SnvRatios []float64
 	InsRatios []float64
@@ -107,14 +114,19 @@ func addBatchStats(xlsx *excelize.File, sheet string, batchVerif *Verification) 
 	xlsx.SetSheetRow(
 		sheet, "A2",
 		&[]any{
+			batchVerif.BatchName,
+			batchVerif.TotalSegment,
+			batchVerif.EffectiveSegment,
+			batchVerif.TotalClone,
 			batchVerif.EffectiveClone,
+			batchVerif.HighFrequencyVarint,
+			batchVerif.SequencingDeletion,
 			batchVerif.SnvRatioMean,
 			batchVerif.InsRatioMean,
 			batchVerif.DelRatioMean,
 			batchVerif.Status,
 		},
 	)
-
 }
 
 // 添加 测序结果板位图

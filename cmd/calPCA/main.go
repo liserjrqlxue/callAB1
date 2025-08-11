@@ -207,7 +207,7 @@ func main() {
 	}()
 
 	var (
-		batchVerif = &Verification{Status: "合格"}
+		batchVerif = &Verification{}
 		resultMap  = make(map[string]*tracyResult)
 	)
 	for result := range results {
@@ -218,8 +218,13 @@ func main() {
 		cloneVariantLines[result.ID] = result.cloneVariantLines
 		setVariantLines[result.ID] = result.setVariantLines
 
+		batchVerif.TotalSegment++
+		batchVerif.TotalClone += result.TotalClone
 		batchVerif.EffectiveClone += result.EffectiveClone
+		batchVerif.HighFrequencyVarint += result.HighFrequencyVarint
+		batchVerif.SequencingDeletion += result.SequencingDeletion
 		if result.EffectiveClone > 0 {
+			batchVerif.EffectiveSegment++
 			batchVerif.SnvRatios = append(batchVerif.SnvRatios, result.SnvRatio)
 			batchVerif.InsRatios = append(batchVerif.InsRatios, result.InsRatio)
 			batchVerif.DelRatios = append(batchVerif.DelRatios, result.DelRatio)
@@ -280,10 +285,15 @@ type tracyResult struct {
 	setVariantLines   [][]any
 
 	// (%)
-	SnvRatio       float64
-	InsRatio       float64
-	DelRatio       float64
-	EffectiveClone int
+
+	TotalClone          int
+	EffectiveClone      int
+	HighFrequencyVarint int
+	SequencingDeletion  int
+
+	SnvRatio float64
+	InsRatio float64
+	DelRatio float64
 }
 
 type Variant struct {
@@ -423,8 +433,10 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 		variants           []*Variant
 		cloneVariantsLines [][]any
 		setVariantLines    [][]any
+
+		effectiveClone int // 有效克隆数
+		totalClone     = len(result)
 	)
-	var clonePass int // 有效克隆数
 	for cloneID, results := range result {
 		pass := false
 		for i, result := range results {
@@ -448,7 +460,7 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 			}
 		}
 		if pass {
-			clonePass++
+			effectiveClone++
 		}
 	}
 	// 按Pos排序
@@ -521,7 +533,7 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 				Pos:        cl.Pos,
 				CloneID:    []string{cl.CloneID},
 				CloneCount: 1,
-				ClonePass:  clonePass,
+				ClonePass:  effectiveClone,
 				Variant:    cl.Variant,
 				Qual:       cl.Qual,
 				Filter:     cl.Filter,
@@ -580,7 +592,7 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 				Pos:          vs.Pos,
 				VariantID:    map[string]int{vs.VariantID: vs.CloneCount},
 				VariantCount: vs.CloneCount,
-				ClonePass:    clonePass,
+				ClonePass:    effectiveClone,
 				Variant:      vs.Variant,
 			}
 		}
@@ -630,7 +642,7 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 	}
 	simpleUtil.CheckErr(out.Close())
 
-	seqLines, vTypePercent := RecordSeq(seq, result, prefix)
+	seqLines, vTypePercent, highFrequencyVarint, sequencingDeletion := RecordSeq(seq, result, prefix)
 
 	return tracyResult{
 		ID:  id,
@@ -642,9 +654,12 @@ func processSeq(i int, id string, cy0130 bool, renameID, outputDir string, bin s
 		cloneVariantLines: cloneVariantsLines,
 		setVariantLines:   setVariantLines,
 
-		SnvRatio:       vTypePercent["SNV"],
-		InsRatio:       vTypePercent["Insertion"],
-		DelRatio:       vTypePercent["Deletion"],
-		EffectiveClone: clonePass,
+		TotalClone:          totalClone,
+		EffectiveClone:      effectiveClone,
+		HighFrequencyVarint: highFrequencyVarint,
+		SequencingDeletion:  sequencingDeletion,
+		SnvRatio:            vTypePercent["SNV"],
+		InsRatio:            vTypePercent["Insertion"],
+		DelRatio:            vTypePercent["Deletion"],
 	}
 }
