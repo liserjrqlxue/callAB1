@@ -74,19 +74,28 @@ func addSplicedPrimerPlate(xlsx *excelize.File, sheet, path string, primerACC ma
 }
 
 type Verification struct {
-	SnvRatio float64
-	InsRatio float64
-	DelRatio float64
-	Status   string
+	EffectiveClone int
+
+	SnvRatios []float64
+	InsRatios []float64
+	DelRatios []float64
+
+	SnvRatioMean float64
+	InsRatioMean float64
+	DelRatioMean float64
+
+	Status string
 }
 
-func (vf *Verification) BatchValidation(snvRatios, insRatios, delRatios []float64) {
-	vf.SnvRatio = lo.Mean(snvRatios)
-	vf.InsRatio = lo.Mean(insRatios)
-	vf.DelRatio = lo.Mean(delRatios)
+func (vf *Verification) BatchValidation() {
+	vf.SnvRatioMean = lo.Mean(vf.SnvRatios)
+	vf.InsRatioMean = lo.Mean(vf.InsRatios)
+	vf.DelRatioMean = lo.Mean(vf.DelRatios)
 
-	if vf.SnvRatio >= SnvRatio || vf.InsRatio >= InsRatio || vf.DelRatio >= DelRatio {
+	if vf.EffectiveClone == 0 || vf.SnvRatioMean >= SnvRatio || vf.InsRatioMean >= InsRatio || vf.DelRatioMean >= DelRatio {
 		vf.Status = "不合格"
+	} else {
+		vf.Status = "合格"
 	}
 }
 
@@ -98,9 +107,10 @@ func addBatchStats(xlsx *excelize.File, sheet string, batchVerif *Verification) 
 	xlsx.SetSheetRow(
 		sheet, "A2",
 		&[]any{
-			batchVerif.SnvRatio,
-			batchVerif.InsRatio,
-			batchVerif.DelRatio,
+			batchVerif.EffectiveClone,
+			batchVerif.SnvRatioMean,
+			batchVerif.InsRatioMean,
+			batchVerif.DelRatioMean,
 			batchVerif.Status,
 		},
 	)
