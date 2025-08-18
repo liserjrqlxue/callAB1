@@ -68,7 +68,8 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 		index++
 		panelIndex := index / 6
 		rowOffset := panelIndex * panelHeight
-		if index%6 == 0 {
+		panelCol := index % 6 * 2
+		if panelCol == 0 {
 			panelInit(listXlsx, plateSheet, rowOffset, bgStyleMap[-1])
 		}
 
@@ -77,19 +78,19 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 		for j, pair := range seq.SegmentPairs {
 			row := j/halfBreak*4 + j%halfBreak
 
-			cellName1 := CoordinatesToCellName(3+index*2, row+6+rowOffset)
-			cellName2 := CoordinatesToCellName(3+index*2+1, row+6+rowOffset)
+			cellName1 := CoordinatesToCellName(3+panelCol, row+6+rowOffset)
+			cellName2 := CoordinatesToCellName(3+panelCol+1, row+6+rowOffset)
 			listXlsx.SetSheetRow(plateSheet, cellName1, &[]string{pair.Left.Name, pair.Right.Name})
 			simpleUtil.CheckErr(listXlsx.SetCellStyle(plateSheet, cellName1, cellName2, bgStyleMap[index%3]))
 
 			batch.WritePrimerOrder(
 				orderXlsx, orderSheet,
-				orderColOffset, orderRowOffset+row+(index*2)*orderRowSkip+panelIndex*orderPanelHight,
+				orderColOffset, orderRowOffset+row+panelCol*orderRowSkip+panelIndex*orderPanelHight,
 				1, pair.Left, false,
 			)
 			batch.WritePrimerOrder(
 				orderXlsx, orderSheet,
-				orderColOffset, orderRowOffset+row+index*(2+1)*orderRowSkip+panelIndex*orderPanelHight,
+				orderColOffset, orderRowOffset+row+(panelCol+1)*orderRowSkip+panelIndex*orderPanelHight,
 				1, pair.Right, true,
 			)
 
