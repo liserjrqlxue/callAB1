@@ -84,12 +84,12 @@ func runFix(prefix, template string, segmentList []string, segmentMap map[string
 
 			batch.WritePrimerOrder(
 				orderXlsx, orderSheet,
-				orderColOffset, orderRowOffset+row+(index*2+1)*orderRowSkip+panelIndex*orderPanelHight,
+				orderColOffset, orderRowOffset+row+(index*2)*orderRowSkip+panelIndex*orderPanelHight,
 				1, pair.Left, false,
 			)
 			batch.WritePrimerOrder(
 				orderXlsx, orderSheet,
-				orderColOffset, orderRowOffset+row+index*2*orderRowSkip+panelIndex*orderPanelHight,
+				orderColOffset, orderRowOffset+row+index*(2+1)*orderRowSkip+panelIndex*orderPanelHight,
 				1, pair.Right, true,
 			)
 
