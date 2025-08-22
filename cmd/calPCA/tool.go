@@ -56,7 +56,17 @@ func RunTracyCY0130(id, prefix, bin, path string, result map[string][2]*tracy.Re
 	if err != nil {
 		slog.Error("RunSingle", "id", id, "sangerIndex", sangerIndex, "err", err)
 	}
-	result[sangerIndex] = [2]*tracy.Result{&result1}
+	path2 := strings.Replace(path, "T7.ab1", "T7term.ab1", 1)
+	if path2 != path && osUtil.FileExists(path2) {
+		result2, err := tracy.RunSingle(bin, prefix+".fa", path2, sangerPrefix, override)
+		if err != nil {
+			slog.Error("RunSingle", "id", id, "sangerIndex", sangerIndex, "err", err)
+			return
+		}
+		result[sangerIndex] = [2]*tracy.Result{&result1, &result2}
+	} else {
+		result[sangerIndex] = [2]*tracy.Result{&result1}
+	}
 }
 
 // 遍历分析sanger文件 -> result
@@ -69,6 +79,8 @@ func RunTracyBatch(id, prefix, bin string) map[string][2]*tracy.Result {
 	}
 	return result
 }
+
+var term = regexp.MustCompile(`term.ab1`)
 
 // 遍历分析sanger文件 -> result
 func RunTracyBatchCy0130(id, prefix, bin string, override bool) map[string][2]*tracy.Result {
@@ -83,7 +95,9 @@ func RunTracyBatchCy0130(id, prefix, bin string, override bool) map[string][2]*t
 	files = append(files, files2...)
 
 	for _, path := range files {
-		RunTracyCY0130(id, prefix, bin, path, result, override)
+		if !term.MatchString(path) {
+			RunTracyCY0130(id, prefix, bin, path, result, override)
+		}
 	}
 	return result
 }
