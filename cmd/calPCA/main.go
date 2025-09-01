@@ -80,6 +80,11 @@ var (
 		false,
 		"run chemical supplements",
 	)
+	thread = flag.Int(
+		"t",
+		0,
+		"thread limit, 0 for all",
+	)
 )
 
 type Seq struct {
@@ -185,6 +190,10 @@ func main() {
 		slog.Info("RENAME", "rename", rename)
 	}
 
+	if *thread == 0 {
+		*thread = len(segmentList)
+	}
+	sem := make(chan struct{}, *thread)
 	results := make(chan tracyResult, len(segmentList)) // 缓冲通道提升性能
 	var wg sync.WaitGroup
 	for i, id := range segmentList {
@@ -193,8 +202,12 @@ func main() {
 			slog.Error("Skip", "i", i, "id", id)
 		} else {
 			wg.Add(1)
+			sem <- struct{}{} // 获取信号量
 			go func(i int, id string) {
-				defer wg.Done()
+				defer func() {
+					<-sem // 释放信号量
+					wg.Done()
+				}()
 				results <- processSeq(i, id, cy0130, renameID, *outputDir, *bin, segmentMap, *override)
 			}(i, id)
 		}
