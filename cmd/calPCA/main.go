@@ -196,7 +196,8 @@ func main() {
 	sem := make(chan struct{}, *thread)
 	results := make(chan tracyResult, len(segmentList)) // 缓冲通道提升性能
 	var wg sync.WaitGroup
-	for i, id := range segmentList {
+	i := 0
+	for id := range segmentMap {
 		renameID, ok := rename[id]
 		if !ok {
 			slog.Error("Skip", "i", i, "id", id)
@@ -211,6 +212,7 @@ func main() {
 				results <- processSeq(i, id, cy0130, renameID, *outputDir, *bin, segmentMap, *override)
 			}(i, id)
 		}
+		i++
 	}
 
 	// 等待所有任务完成并关闭通道
