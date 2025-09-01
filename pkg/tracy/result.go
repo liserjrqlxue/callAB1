@@ -254,14 +254,14 @@ func (ar *AlignResult) CalAlign() {
 	// reverse:
 	//   refLenth + refpos-1     refpos
 	//   leftCut+1               altLength-rightCut
-	fmt.Printf("Match Region: forward:%d:Ref[%d,%d] Alt[%d,%d]\n", ar.Forward, ar.Refpos, ar.Refpos+refLength-1, leftCut+1, altLength-rightCut)
+	// fmt.Printf("Match Region: forward:%d:Ref[%d,%d] Alt[%d,%d]\n", ar.Forward, ar.Refpos, ar.Refpos+refLength-1, leftCut+1, altLength-rightCut)
 	leftOffset := max(0, Trim-leftCut)
 	rightOffset := max(0, altLength-rightCut-MaxLength)
 	if ar.Forward == 1 {
-		fmt.Printf("Match Region: forward:%d:Ref[%d,%d] Alt[%d,%d]\n", ar.Forward, ar.Refpos+leftOffset, ar.Refpos+refLength-1-rightOffset, leftCut+1+leftOffset, altLength-rightCut-rightOffset)
+		// fmt.Printf("Match Region: forward:%d:Ref[%d,%d] Alt[%d,%d]\n", ar.Forward, ar.Refpos+leftOffset, ar.Refpos+refLength-1-rightOffset, leftCut+1+leftOffset, altLength-rightCut-rightOffset)
 		ar.MatchRegion = [2]int{ar.Refpos + leftOffset, ar.Refpos + refLength - 1 - rightOffset}
 	} else {
-		fmt.Printf("Match Region: forward:%d:Ref[%d,%d] Alt[%d,%d]\n", ar.Forward, ar.Refpos+rightOffset, ar.Refpos+refLength-1-leftOffset, leftCut+1+leftOffset, altLength-rightCut-rightOffset)
+		// fmt.Printf("Match Region: forward:%d:Ref[%d,%d] Alt[%d,%d]\n", ar.Forward, ar.Refpos+rightOffset, ar.Refpos+refLength-1-leftOffset, leftCut+1+leftOffset, altLength-rightCut-rightOffset)
 		ar.MatchRegion = [2]int{ar.Refpos + rightOffset, ar.Refpos + refLength - 1 - leftOffset}
 	}
 	slog.Debug("CalAlign", "match", match, "refLength", refLength, "altLength", altLength, "altRatio", float64(match)/float64(altLength), "status", status)
