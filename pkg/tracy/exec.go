@@ -79,7 +79,7 @@ func RunBasecall(tracy, input, prefix string, left, right int, stdout, stderr *o
 
 	err = json.Unmarshal(resultJson, &result)
 	if err != nil {
-		slog.Error("Unmarshal basecall.json", "jsonByte", resultJson, "err", err)
+		slog.Error("Unmarshal basecall.json", "jsonFile", jsonFile, "err", err, "jsonByte", resultJson)
 		return
 	}
 
