@@ -58,7 +58,8 @@ func RunTracyCY0130(id, prefix, bin, path string, result map[string][2]*tracy.Re
 	}
 	path2 := strings.Replace(path, "T7.ab1", "T7term.ab1", 1)
 	if path2 != path && osUtil.FileExists(path2) {
-		result2, err := tracy.RunSingle(bin, prefix+".fa", path2, sangerPrefix, override)
+		slog.Info("Found Term", "id", id, "path2", path2)
+		result2, err := tracy.RunSingle(bin, prefix+".fa", path2, sangerPrefix+"term", override)
 		if err != nil {
 			slog.Error("RunSingle", "id", id, "sangerIndex", sangerIndex, "err", err)
 			return
