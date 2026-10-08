@@ -144,7 +144,7 @@ func main() {
 		*renameTxt = filepath.Join(*outputDir, "rename.txt")
 	}
 	if *sangerDir == "" {
-		*renameTxt = filepath.Join(*outputDir, "ab1")
+		*sangerDir = filepath.Join(*outputDir, "ab1")
 	}
 
 	if *cloneCount > 0 {
