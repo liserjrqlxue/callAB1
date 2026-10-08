@@ -48,16 +48,118 @@
 
 读取其中的 `拼接引物板` Sheet，在结果工作簿中重建并追加“平均准确率 / 参考单步准确率”行。
 
-### 3. 测序 ab1（`-s`）
+### 3. 测序 ab1（`-s`，默认 `<输出目录>/ab1`）
 
-- **CY0130 模式**（默认）：`<sanger目录>/<片段ID>*.ab1` 及 `<sanger目录>/*/<片段ID>*.ab1`；忽略文件名匹配 `term.ab1` 的文件，`T7.ab1` 若存在同目录 `T7term.ab1` 则自动配对
-- **常规模式**：文件需命名为 `BGA-<tag>-TY1-<1..N>-T7.ab1` 与 `...-T7-Term.ab1`，其中 `<tag>` 由片段 ID 第 2 段前 4 字符、第 3 字符替换为 `B` 得到（如 `BGA_14A2_*` → `14B2`）；两个文件必须成对存在，缺一即 `log.Fatal`
+测序文件与片段/克隆的具体对应规则见下方 [序列层级与 Sanger 文件对应关系](#序列层级与-sanger-文件对应关系)。
 
 ### 4. rename.txt（`-r`，默认 `<输出目录>/rename.txt`）
 
-两列 tab 分隔：`片段ID<TAB>测序文件ID`。文件不存在时使用恒等映射（片段 ID 即测序前缀）。
+tab 分隔两列、无表头：`片段名称<TAB>sanger文件前缀`。用于 CY0130 模式下把设计表中的片段名桥接到实际测序文件名；详细规则与不规则文件名示例见 [rename.txt 用法](#renametxt-用法不规则文件名)。
 
-> 注意：只要 `-r` 非空即进入 CY0130 模式，而该 flag 有默认值，因此**程序默认运行在 CY0130 模式**；常规模式需显式 `-r ""`（见下方“已知问题”）。
+> 注意：只要 `-r` 非空即进入 CY0130 模式，而该 flag 有默认值，因此**程序默认运行在 CY0130 模式**；常规模式需显式 `-r ""`。
+
+## 序列层级与 Sanger 文件对应关系
+
+### 1. Excel 中的层级与 ID 命名
+
+加载后内存中为四级树：**基因 → 片段 → 引物对 → 引物**，每一级靠 ID 的后缀规则反查父级（无需额外的 ID 列）：
+
+| 层级 | Sheet · 列 | ID 示例 | 父级反查规则 |
+| --- | --- | --- | --- |
+| 基因 | `原始序列` · 基因名称 | `BGA_14A2` | — |
+| 片段 | `分段序列` · 片段名称 | `BGA_14A2_1` | `RefID = 片段名去掉末 2 字符`（`BGA_14A2_1` → `BGA_14A2`）；固定跳过 `EGC_K` |
+| 引物对 | `引物对序列` · 引物对名称 | `BGA_14A2_1_1` | 去掉末 1 字符后再去掉尾部 `_`（`BGA_14A2_1_1` → `BGA_14A2_1`） |
+| 引物 | 程序派生，无 Sheet | 常规模式：`BGA_14A2_1_1_1`（左）、`..._2`（右）；CY0130 模式：仅 1 条，ID 同名引物对 | 由"左/右引物-起点/终点"列生成 |
+
+挂载关系（[tool.go](file:///e:/liserjrqlxue/callAB1/cmd/calPCA/tool.go)）：`gene.SubSeq = 该基因的全部片段`（[LoadSegmentSequence](file:///e:/liserjrqlxue/callAB1/cmd/calPCA/tool.go#L637-L682)）；`segment.SubSeq = 引物对`、`pair.SubSeq = 左/右引物`（[LoadPrimerPairSequence](file:///e:/liserjrqlxue/callAB1/cmd/calPCA/tool.go#L684-L739)）。
+
+### 2. 序列坐标如何对应
+
+- 片段行的 `起点/终点`：片段有效区在片段序列上的 0-based 半开区间 `[起点, 终点)`
+- 引物对行的坐标：
+  - `有效序列-起点/终点`：引物对**自身序列**上的有效区
+  - `片段-起点/终点`：引物对有效区在**片段有效区内**的偏移
+  - `左引物-起点/终点`、`右引物-起点/终点`：左/右引物在引物对序列上的坐标
+- 加载时强校验（不一致直接 `log.Fatal`）：
+
+```text
+片段Seq[起点:终点][片段-起点:片段-终点] == 引物对Seq[有效序列-起点:有效序列-终点]
+```
+
+- 统计变异时（[RecordPrimer / RecordPair](file:///e:/liserjrqlxue/callAB1/cmd/calPCA/tool.go#L171-L277)）把引物坐标换算回片段坐标：`offset = 片段起点 + 片段-起点 − 有效序列-起点`，只统计落在 `(引物Start+offset, 引物End+offset]` 内的变异。tracy 输出的 `Pos` 是相对该片段参考 fasta（即 `<id>.fa`）的位置。
+
+### 3. Sanger 文件如何归属到片段和克隆
+
+分析以**片段**为单位：每个片段写一个参考 fasta，tracy 以它为 reference 分析该片段的全部克隆；一个克隆可含 1～2 条 Sanger（T7 端 / term 端），两条中任一 `PASS` 该克隆即为有效克隆。
+
+#### CY0130 模式（默认，[RunTracyBatchCy0130](file:///e:/liserjrqlxue/callAB1/cmd/calPCA/tool.go#L87-L104)）
+
+1. 在两处按前缀 glob 文件（递归深度仅一级子目录）：
+   - `<sanger目录>/<前缀>*.ab1`
+   - `<sanger目录>/*/<前缀>*.ab1`
+2. 文件名匹配 `term.ab1`（小写）的文件不作为独立克隆；其余每个文件 = 一个克隆，**克隆 ID = 文件名去掉 `.ab1`**
+3. term 端自动配对（[RunTracyCY0130](file:///e:/liserjrqlxue/callAB1/cmd/calPCA/tool.go#L44-L71)）：同路径下把主文件名中的 `T7.ab1` 替换为 `T7term.ab1`，存在则作为该克隆第 2 条；不存在则按单端分析
+
+```text
+ab1/
+├── BGA_14A2_1-1-T7.ab1        ── 克隆 "BGA_14A2_1-1-T7" 第1条
+├── BGA_14A2_1-1-T7term.ab1    ── 同一克隆第2条（自动配对）
+├── BGA_14A2_1-2-T7.ab1        ── 克隆 "BGA_14A2_1-2-T7"（单端）
+└── plate1/
+    └── BGA_14A2_2-1-T7.ab1    ── 一级子目录同样会被搜到
+```
+
+#### 常规模式（`-r ""`，[RunTracyBatch](file:///e:/liserjrqlxue/callAB1/cmd/calPCA/tool.go#L74-L82)）
+
+- tag 推导：片段 ID 按 `_` 切分取第 2 段前 4 字符、第 3 字符替换为 `B`。`BGA_14A2_1` → `14A2` → **`14B2`**
+- 克隆号从 1 扫到 `-c`（默认 32），每个克隆号固定查找一对文件：
+
+```text
+BGA-14B2-TY1-1-T7.ab1
+BGA-14B2-TY1-1-T7-Term.ab1     # 注意此模式是大写 Term
+```
+
+- 两个文件都存在才分析；**只找到一个会 `log.Fatal`**；都没有则跳过该克隆号。克隆 ID 即 `"1".."N"`
+
+### 4. rename.txt 用法（不规则文件名）
+
+格式（tab 分隔、无表头）：
+
+```text
+<分段序列中的片段名称>	<sanger文件实际前缀>
+```
+
+行为规则（[main.go L180-216](file:///e:/liserjrqlxue/callAB1/cmd/calPCA/main.go#L180-L216)）：
+
+1. **文件存在时是白名单**：只有第一列列出的片段才会分析；未列出的片段打印 `Skip` 错误日志并跳过
+2. **文件不存在时**：自动对全部片段建立恒等映射（前缀 = 片段名）
+3. 第二列前缀只用于 glob 匹配（根目录 + 一级子目录），匹配到的每个文件仍以其文件 stem 作为克隆 ID
+4. term 端必须是小写 `T7term.ab1` 且与主文件同目录才会自动配对
+
+**示例**：测序目录结构不规则、文件放在不同板子目录：
+
+```text
+ab1/
+├── plate1/
+│   ├── CY0130-A01-1-T7.ab1
+│   ├── CY0130-A01-1-T7term.ab1
+│   └── CY0130-A01-2-T7.ab1
+└── plate2/
+    └── CY0130-A02-1-T7.ab1
+```
+
+`rename.txt`：
+
+```text
+BGA_14A2_1	CY0130-A01
+BGA_14A2_2	CY0130-A02
+```
+
+则片段 `BGA_14A2_1` 会匹配到 `plate1/CY0130-A01-1(-T7/-T7term)` 与 `...-2-T7` 两个克隆；未在文件中出现的片段全部跳过。
+
+**对结果显示的影响**：正确克隆在"片段结果/板位图"中会尝试把克隆 ID 缩写成 `片段ID-克隆号` 形式，要求文件名匹配 `^<片段ID>-(\d+)`，或片段 ID 首个 `_` 写作 `-` 的形式（如 `BGA-14A2_1-3-T7.ab1`）。完全不规则的文件名（如上例 `CY0130-A01-1-T7`）**不影响变异统计、正确克隆计数与合格判定**，仅列表中保留完整文件名并打印一条 `can not parse clone` 日志。
+
+**前缀冲突提醒**：匹配规则是 `前缀*.ab1`，各前缀不能互为前缀（如 `CY0130-A1` 会误匹配到 `CY0130-A10-...`），请使用带分隔符、足够区分度的前缀。
 
 ## 参数说明
 
@@ -66,7 +168,7 @@
 | `-o` | string | — | **必填**，输出目录 |
 | `-i` | string | `<o>/自合.xlsx` | 自合设计 Excel |
 | `-io` | string | `<o>/引物订购单_BOM.xlsx` | 引物订购单 BOM |
-| `-s` | string | 空 | ab1 测序目录（期望默认 `<o>/ab1`，见“已知问题”） |
+| `-s` | string | `<o>/ab1` | ab1 测序目录 |
 | `-r` | string | `<o>/rename.txt` | CY0130 重命名文件；置空可切换到常规模式 |
 | `-tracy` | string | `tracy` | tracy 二进制路径 |
 | `-c` | int | `0`（用内置值 32） | 常规模式每分段扫描的最大克隆数 |
@@ -160,24 +262,12 @@
 # 构建
 go build -o calPCA ./cmd/calPCA
 
-# CY0130 模式（默认，测序文件按 <片段ID>*.ab1 组织）
-./calPCA -o path/to/batch -s path/to/ab1 -t 16
+# CY0130 模式（默认，测序文件按 <片段ID>*.ab1 组织；-s 可省略，默认 <o>/ab1）
+./calPCA -o path/to/batch -t 16
 
 # 常规模式（固定 BGA 命名 + 成对 T7/T7-Term）
 ./calPCA -o path/to/batch -s path/to/ab1 -r "" -c 32
 
 # 分析后追加化学补充
-./calPCA -o path/to/batch -s path/to/ab1 -fix -w
+./calPCA -o path/to/batch -fix -w
 ```
-
-## 已知问题
-
-[main.go L146-148](file:///e:/liserjrqlxue/callAB1/cmd/calPCA/main.go#L146-L148) 中 `-s` 默认值被误赋值给了 `*renameTxt`：
-
-```go
-if *sangerDir == "" {
-    *renameTxt = filepath.Join(*outputDir, "ab1") // 应为 *sangerDir
-}
-```
-
-因此当前版本中 `-s` 不会自动默认到 `<输出目录>/ab1`，未显式传 `-s` 时测序目录为空字符串，请始终通过 `-s` 显式指定。
