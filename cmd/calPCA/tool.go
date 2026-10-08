@@ -725,6 +725,13 @@ func LoadPrimerPairSequence(xlsx *excelize.File, sheet string, segmentMap map[st
 		}
 		// 检查符合
 		if refSeq.Seq[refSeq.Start:refSeq.End][pair.RefStart:pair.RefEnd] != pair.Seq[pair.Start:pair.End] {
+			slog.Error("序列不匹配",
+				"id", pair.ID,
+				"refID", pair.RefID,
+				"refSeq", fmt.Sprintf("refSeq.Seq[%d:%d][%d:%d]", refSeq.Start, refSeq.End, pair.RefStart, pair.RefEnd),
+				"pair", fmt.Sprintf("pair.Seq[%d:%d]", pair.Start, pair.End),
+				"refSeq", refSeq.Seq[refSeq.Start:refSeq.End][pair.RefStart:pair.RefEnd],
+				"pair", pair.Seq[pair.Start:pair.End])
 			log.Fatal("seq not match for:", pair.ID)
 		}
 		pair.RefSeq = refSeq
