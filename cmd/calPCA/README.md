@@ -173,6 +173,7 @@ BGA_14A2_2	CY0130-A02
 | `-tracy` | string | `tracy` | tracy 二进制路径 |
 | `-c` | int | `0`（用内置值 32） | 常规模式每分段扫描的最大克隆数 |
 | `-q` | int | `0`（用内置值 45） | 变异统计的最低 Qual，低于该值的变异被过滤 |
+| `-b` | float64 | `0.9` | 比对边界匹配率阈值 `BoundMatchRaitoLimit`，低于该值的 Sanger 记为 `LowMatch` |
 | `-w` | bool | `false` | 覆盖已有的 tracy 结果 JSON（否则断点复用） |
 | `-fix` | bool | `false` | 分析完成后执行化学补充（化补2）引物设计 |
 | `-t` | int | `0`（=分段总数） | 并发线程上限 |
@@ -199,7 +200,8 @@ BGA_14A2_2	CY0130-A02
 对每个 ab1 依次执行 `basecall`、`align`、`decompose`，结果缓存为 JSON，`-w` 强制重算：
 
 - 比对边界：测序有效区域 `[60, 700]`，参考边界 `[40, 长度-40]`
-- `BoundMatchRatio < 0.9` → 状态追加 `LowMatch`；basecall 长度 `< 100` → `TooShort`；无任何标记即为 `PASS`
+- `BoundMatchRatio < BoundMatchRaitoLimit`（默认 0.9，可用 `-b` 覆盖）→ 状态追加 `LowMatch`；basecall 长度 `< 100` → `TooShort`；无任何标记即为 `PASS`
+  - 该阈值与 `-q` 一样在每次运行时重新判定，复用 tracy 缓存（未加 `-w`）时改 `-b` 依然生效
 - SV 判定：类型为 `Complex`，或 SNV 的 Alt 长度 ≥ 3，或插入/缺失长度差 ≥ 3
 
 ## 判定规则与指标

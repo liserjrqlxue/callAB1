@@ -70,6 +70,11 @@ var (
 		0,
 		"filter qual < MaxQual",
 	)
+	boundMatchRatio = flag.Float64(
+		"b",
+		0.9,
+		"filter boundMatchRatio < BoundMatchRaitoLimit",
+	)
 	override = flag.Bool(
 		"w",
 		false,
@@ -152,6 +157,8 @@ func main() {
 	}
 
 	MaxQual = *maxQual
+
+	tracy.BoundMatchRaitoLimit = *boundMatchRatio
 
 	var (
 		cy0130            bool
